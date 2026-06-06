@@ -314,6 +314,7 @@ function initTodoApp(options = {}) {
     filterButtons.forEach((button) => {
       const isActiveFilter = normalizeTodoFilter(button.dataset.todoFilter) === currentFilter;
       button.setAttribute("aria-pressed", String(isActiveFilter));
+      button.classList.toggle("is-active", isActiveFilter);
     });
   }
 

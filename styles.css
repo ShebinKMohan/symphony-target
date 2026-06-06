@@ -290,7 +290,8 @@ h2 {
   font-size: 0.9rem;
 }
 
-.todo-filter[aria-pressed="true"] {
+.todo-filter[aria-pressed="true"],
+.todo-filter.is-active {
   color: #ffffff;
   background: var(--focus);
 }
