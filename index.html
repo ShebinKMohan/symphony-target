@@ -3,12 +3,12 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Pomodoro Timer</title>
+    <title>Focus Timer</title>
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
     <main class="app-shell" aria-labelledby="app-title">
-      <section class="timer-panel" data-pomodoro-timer>
+      <section class="timer-panel" data-pomodoro-timer aria-labelledby="app-title">
         <header class="app-header">
           <div>
             <p class="eyebrow">Pomodoro</p>
@@ -36,6 +36,30 @@
           <button type="button" data-timer-action="pause" disabled>Pause</button>
           <button type="button" data-timer-action="reset">Reset</button>
         </div>
+      </section>
+
+      <section class="todo-panel" aria-labelledby="todo-title">
+        <header class="app-header">
+          <div>
+            <p class="eyebrow">Todo</p>
+            <h2 id="todo-title">Today</h2>
+          </div>
+          <span class="todo-count" data-todo-count>0 active / 0 complete</span>
+        </header>
+
+        <form class="todo-form" data-todo-form>
+          <label class="sr-only" for="todo-input">New todo</label>
+          <input id="todo-input" data-todo-input type="text" autocomplete="off" placeholder="Add a todo">
+          <button type="submit">Add</button>
+        </form>
+
+        <div class="todo-filters" role="group" aria-label="Todo filter">
+          <button class="todo-filter" type="button" data-todo-filter="all" aria-pressed="true">All</button>
+          <button class="todo-filter" type="button" data-todo-filter="active" aria-pressed="false">Active</button>
+          <button class="todo-filter" type="button" data-todo-filter="completed" aria-pressed="false">Completed</button>
+        </div>
+
+        <ul class="todo-list" data-todo-list aria-live="polite"></ul>
       </section>
     </main>
 
