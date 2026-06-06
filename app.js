@@ -507,6 +507,7 @@ if (typeof module !== "undefined") {
     createTodoController,
     createPomodoroTimer,
     formatDuration,
+    initTodoApp,
     initPomodoroApp,
     loadTodos,
     renderTodos,
