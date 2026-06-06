@@ -8,6 +8,33 @@
   </head>
   <body>
     <main class="app-shell" aria-labelledby="app-title">
+      <section class="timer-panel" aria-labelledby="timer-title">
+        <header class="timer-header">
+          <div>
+            <p class="eyebrow">Timer</p>
+            <h1 id="timer-title" class="timer-title">Focus</h1>
+          </div>
+          <span class="timer-display" data-timer-display>5:00</span>
+        </header>
+
+        <div class="timer-settings">
+          <label class="timer-minutes">
+            <span>Minutes</span>
+            <input data-timer-minutes type="number" min="1" max="180" step="1" value="5">
+          </label>
+          <div class="timer-actions" aria-label="Timer controls">
+            <button type="button" data-timer-start>Start</button>
+            <button type="button" data-timer-pause>Pause</button>
+            <button type="button" data-timer-reset>Reset</button>
+          </div>
+        </div>
+
+        <div class="notification-row">
+          <button type="button" data-notification-permission>Enable notifications</button>
+          <span data-notification-status>Notifications: default</span>
+        </div>
+      </section>
+
       <section class="todo-panel">
         <header class="app-header">
           <div>
