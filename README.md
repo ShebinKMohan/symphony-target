@@ -1,6 +1,6 @@
-# Todo app
+# Pomodoro timer
 
-A small browser Todo app with local-storage persistence.
+A small browser Pomodoro timer with focus and break sessions.
 
 ## Validation
 
