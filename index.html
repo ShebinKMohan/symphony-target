@@ -22,6 +22,19 @@
           <button class="session-tab" type="button" data-session-mode="break" aria-pressed="false">Break</button>
         </div>
 
+        <form class="duration-settings" data-duration-settings>
+          <label>
+            <span>Focus min</span>
+            <input data-duration-input="focus" type="number" min="1" step="1" inputmode="numeric" value="25">
+          </label>
+          <label>
+            <span>Break min</span>
+            <input data-duration-input="break" type="number" min="1" step="1" inputmode="numeric" value="5">
+          </label>
+          <button type="submit" data-duration-save>Save</button>
+          <span data-duration-status aria-live="polite"></span>
+        </form>
+
         <section class="timer-face" aria-live="polite">
           <p class="session-label" data-session-label>Focus</p>
           <div class="timer-display" data-timer-display>25:00</div>

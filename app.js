@@ -446,15 +446,59 @@ const POMODORO_DURATIONS = {
   focus: 25 * 60,
   break: 5 * 60,
 };
+const POMODORO_SETTINGS_KEY = "pomodoroSettings";
 
 function getReadyStatus(mode) {
   return mode === "break" ? "Ready for a break" : "Ready to focus";
 }
 
+function getDurationMinutes(seconds) {
+  return Math.max(1, Math.floor(seconds / 60));
+}
+
+function loadPomodoroSettings(storage, fallbackDurations = POMODORO_DURATIONS) {
+  const fallbackSettings = {
+    focusMinutes: getDurationMinutes(fallbackDurations.focus),
+    breakMinutes: getDurationMinutes(fallbackDurations.break),
+  };
+
+  if (!storage) {
+    return fallbackSettings;
+  }
+
+  try {
+    const rawSettings = storage.getItem(POMODORO_SETTINGS_KEY);
+    const parsedSettings = rawSettings ? JSON.parse(rawSettings) : {};
+
+    return {
+      focusMinutes: normalizeDuration(parsedSettings.focusMinutes, fallbackSettings.focusMinutes),
+      breakMinutes: normalizeDuration(parsedSettings.breakMinutes, fallbackSettings.breakMinutes),
+    };
+  } catch (_error) {
+    return fallbackSettings;
+  }
+}
+
+function savePomodoroSettings(settings, storage) {
+  if (!storage) {
+    return;
+  }
+
+  storage.setItem(
+    POMODORO_SETTINGS_KEY,
+    JSON.stringify({
+      focusMinutes: settings.focusMinutes,
+      breakMinutes: settings.breakMinutes,
+    }),
+  );
+}
+
 function createPomodoroTimer(options = {}) {
+  const storage = options.storage === undefined ? getDefaultStorage() : options.storage;
+  const savedSettings = loadPomodoroSettings(storage);
   const durations = {
-    focus: normalizeDuration(options.focusSeconds, POMODORO_DURATIONS.focus),
-    break: normalizeDuration(options.breakSeconds, POMODORO_DURATIONS.break),
+    focus: normalizeDuration(options.focusSeconds, savedSettings.focusMinutes * 60),
+    break: normalizeDuration(options.breakSeconds, savedSettings.breakMinutes * 60),
   };
   const onSessionComplete = options.onSessionComplete || (() => {});
   let mode = "focus";
@@ -471,6 +515,13 @@ function createPomodoroTimer(options = {}) {
       durationSeconds: durations[mode],
       completedFocusSessions,
       statusText,
+    };
+  }
+
+  function getDurationSettings() {
+    return {
+      focusMinutes: getDurationMinutes(durations.focus),
+      breakMinutes: getDurationMinutes(durations.break),
     };
   }
 
@@ -509,6 +560,7 @@ function createPomodoroTimer(options = {}) {
 
   return {
     getState,
+    getDurationSettings,
 
     start() {
       isRunning = true;
@@ -531,6 +583,23 @@ function createPomodoroTimer(options = {}) {
 
     switchMode(nextMode) {
       setMode(nextMode);
+      return getState();
+    },
+
+    updateDurations(settings) {
+      const nextSettings = {
+        focusMinutes: normalizeDuration(settings && settings.focusMinutes, getDurationSettings().focusMinutes),
+        breakMinutes: normalizeDuration(settings && settings.breakMinutes, getDurationSettings().breakMinutes),
+      };
+
+      durations.focus = nextSettings.focusMinutes * 60;
+      durations.break = nextSettings.breakMinutes * 60;
+      savePomodoroSettings(nextSettings, storage);
+
+      isRunning = false;
+      remainingSeconds = durations[mode];
+      statusText = getReadyStatus(mode);
+
       return getState();
     },
 
@@ -630,6 +699,12 @@ function initPomodoroApp(options = {}) {
   const permissionStatus = rootDocument.querySelector("[data-notification-status]");
   const modeButtons = Array.from(rootDocument.querySelectorAll("[data-session-mode]"));
   const actionButtons = Array.from(rootDocument.querySelectorAll("[data-timer-action]"));
+  const durationSettings = rootDocument.querySelector("[data-duration-settings]");
+  const durationInputs = {
+    focus: rootDocument.querySelector('[data-duration-input="focus"]'),
+    break: rootDocument.querySelector('[data-duration-input="break"]'),
+  };
+  const durationStatus = rootDocument.querySelector("[data-duration-status]");
 
   function updatePermissionStatus() {
     if (!permissionStatus) {
@@ -683,6 +758,16 @@ function initPomodoroApp(options = {}) {
     });
   }
 
+  function updateDurationInputs() {
+    if (!durationInputs.focus || !durationInputs.break) {
+      return;
+    }
+
+    const settings = timer.getDurationSettings();
+    durationInputs.focus.value = String(settings.focusMinutes);
+    durationInputs.break.value = String(settings.breakMinutes);
+  }
+
   modeButtons.forEach((button) => {
     button.addEventListener("click", () => {
       timer.switchMode(button.dataset.sessionMode);
@@ -721,6 +806,24 @@ function initPomodoroApp(options = {}) {
     });
   }
 
+  if (durationSettings) {
+    durationSettings.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      timer.updateDurations({
+        focusMinutes: durationInputs.focus && durationInputs.focus.value,
+        breakMinutes: durationInputs.break && durationInputs.break.value,
+      });
+      updateDurationInputs();
+
+      if (durationStatus) {
+        durationStatus.textContent = "Saved";
+      }
+
+      render();
+    });
+  }
+
   const intervalId = rootWindow.setInterval(() => {
     const wasRunning = timer.getState().isRunning;
 
@@ -732,6 +835,7 @@ function initPomodoroApp(options = {}) {
   }, 1000);
 
   render();
+  updateDurationInputs();
   updatePermissionStatus();
 
   return {

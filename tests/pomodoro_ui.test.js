@@ -14,6 +14,11 @@ test("index page exposes the Pomodoro timer UI hooks", () => {
   assert.match(html, /data-timer-action="start"/);
   assert.match(html, /data-timer-action="pause"/);
   assert.match(html, /data-timer-action="reset"/);
+  assert.match(html, /data-duration-settings/);
+  assert.match(html, /data-duration-input="focus"/);
+  assert.match(html, /data-duration-input="break"/);
+  assert.match(html, /data-duration-save/);
+  assert.match(html, /data-duration-status/);
 });
 
 test("index page exposes Todo hooks for Pomodoro session tracking", () => {

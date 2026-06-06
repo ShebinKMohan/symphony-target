@@ -133,6 +133,61 @@ h2 {
   opacity: 0.72;
 }
 
+.duration-settings {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 20px;
+}
+
+.duration-settings label {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.duration-settings input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  color: var(--text);
+  background: #fbfcfe;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.duration-settings input:focus {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px rgba(18, 124, 116, 0.18);
+  outline: none;
+}
+
+.duration-settings button {
+  min-height: 42px;
+  padding: 0 16px;
+  color: #ffffff;
+  background: var(--focus);
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.duration-settings button:hover {
+  background: var(--focus-strong);
+}
+
+.duration-settings span[data-duration-status] {
+  min-width: 48px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .timer-face {
   min-height: 300px;
   display: grid;
@@ -411,6 +466,7 @@ h2 {
   }
 
   .timer-controls,
+  .duration-settings,
   .notification-row,
   .todo-form,
   .todo-item {
