@@ -29,7 +29,8 @@ body {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
 }
 
@@ -106,7 +107,8 @@ h2 {
 .notification-row button,
 .todo-form button,
 .pomodoro-button,
-.delete-button {
+.delete-button,
+.note-button {
   min-height: 44px;
   border: 0;
   border-radius: 8px;
@@ -366,7 +368,7 @@ h2 {
 .todo-content {
   min-width: 0;
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 
 .todo-text {
@@ -377,6 +379,59 @@ h2 {
 .todo-focus {
   color: var(--muted);
   font-size: 0.86rem;
+}
+
+.todo-note {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.todo-note-input {
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  padding: 10px 12px;
+  color: var(--text);
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.todo-note-input:focus {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px rgba(18, 124, 116, 0.16);
+  outline: none;
+}
+
+.todo-note-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.note-button {
+  min-height: 34px;
+  padding: 0 10px;
+  color: var(--text);
+  background: #eef2f5;
+  font-size: 0.84rem;
+}
+
+.note-button:hover {
+  background: #e3e9ee;
+}
+
+.note-clear-button {
+  color: var(--break);
+  background: #f4e8ea;
+}
+
+.note-clear-button:hover {
+  background: #ecd7db;
 }
 
 .todo-item.is-completed {
