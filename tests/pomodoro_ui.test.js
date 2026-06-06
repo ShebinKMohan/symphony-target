@@ -14,4 +14,6 @@ test("index page exposes the Pomodoro timer UI hooks", () => {
   assert.match(html, /data-timer-action="start"/);
   assert.match(html, /data-timer-action="pause"/);
   assert.match(html, /data-timer-action="reset"/);
+  assert.match(html, /data-linked-todo/);
+  assert.match(html, /data-session-history/);
 });

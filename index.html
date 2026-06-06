@@ -36,6 +36,18 @@
           <button type="button" data-timer-action="pause" disabled>Pause</button>
           <button type="button" data-timer-action="reset">Reset</button>
         </div>
+
+        <div class="session-context">
+          <label for="linked-todo">Link todo</label>
+          <select id="linked-todo" data-linked-todo>
+            <option value="">No todos available</option>
+          </select>
+        </div>
+
+        <section class="history-panel" aria-labelledby="session-history-title">
+          <h2 id="session-history-title">Session history</h2>
+          <ol class="session-history" data-session-history aria-live="polite"></ol>
+        </section>
       </section>
     </main>
 

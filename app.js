@@ -1,4 +1,6 @@
 const STORAGE_KEY = "todos";
+const POMODORO_HISTORY_STORAGE_KEY = "pomodoroSessions";
+const POMODORO_HISTORY_LIMIT = 5;
 
 function getDefaultStorage() {
   if (typeof window !== "undefined" && window.localStorage) {
@@ -45,12 +47,69 @@ function saveTodos(todos, storage = getDefaultStorage()) {
   storage.setItem(STORAGE_KEY, JSON.stringify(todos.map(cloneTodo)));
 }
 
+function clonePomodoroSession(session) {
+  return {
+    id: session.id,
+    completedAt: session.completedAt,
+    todoTitle: typeof session.todoTitle === "string" ? session.todoTitle : "",
+  };
+}
+
+function hasValidSessionTimestamp(value) {
+  return typeof value === "string" && !Number.isNaN(Date.parse(value));
+}
+
+function loadPomodoroHistory(storage = getDefaultStorage()) {
+  if (!storage) {
+    return [];
+  }
+
+  try {
+    const rawSessions = storage.getItem(POMODORO_HISTORY_STORAGE_KEY);
+    const parsedSessions = rawSessions ? JSON.parse(rawSessions) : [];
+
+    if (!Array.isArray(parsedSessions)) {
+      return [];
+    }
+
+    return parsedSessions
+      .filter(
+        (session) =>
+          session &&
+          typeof session.id === "string" &&
+          hasValidSessionTimestamp(session.completedAt),
+      )
+      .map(clonePomodoroSession);
+  } catch (_error) {
+    return [];
+  }
+}
+
+function savePomodoroHistory(sessions, storage = getDefaultStorage()) {
+  if (!storage) {
+    return;
+  }
+
+  storage.setItem(
+    POMODORO_HISTORY_STORAGE_KEY,
+    JSON.stringify(sessions.map(clonePomodoroSession)),
+  );
+}
+
 function createId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
   }
 
   return `todo-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function createSessionId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 function createTodoController(options = {}) {
@@ -140,6 +199,112 @@ function renderTodos(todos) {
     .join("");
 }
 
+function normalizeHistoryLimit(value, fallback) {
+  const parsedValue = Number(value);
+
+  if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+    return fallback;
+  }
+
+  return Math.floor(parsedValue);
+}
+
+function normalizeTimestamp(value) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return new Date().toISOString();
+  }
+
+  return date.toISOString();
+}
+
+function formatSessionTimestamp(value) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Unknown time";
+  }
+
+  return date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function renderPomodoroHistory(sessions) {
+  if (!sessions.length) {
+    return '<li class="history-empty">No completed sessions yet</li>';
+  }
+
+  return sessions
+    .map((session) => {
+      const completedAt = escapeHtml(session.completedAt);
+      const timeLabel = escapeHtml(formatSessionTimestamp(session.completedAt));
+      const title = session.todoTitle ? escapeHtml(session.todoTitle) : "Focus session";
+
+      return `
+        <li class="history-item">
+          <time class="history-time" datetime="${completedAt}">${timeLabel}</time>
+          <span class="history-todo">${title}</span>
+        </li>
+      `;
+    })
+    .join("");
+}
+
+function renderLinkedTodoOptions(todos, selectedId = "") {
+  const selectableTodos = todos;
+  const selectedTodoExists = selectableTodos.some((todo) => todo.id === selectedId);
+  const emptyOptionText = selectableTodos.length ? "No linked todo" : "No todos available";
+  const emptySelected = selectedTodoExists ? "" : " selected";
+
+  return [
+    `<option value=""${emptySelected}>${emptyOptionText}</option>`,
+    ...selectableTodos.map((todo) => {
+      const id = escapeHtml(todo.id);
+      const text = escapeHtml(todo.text);
+      const selected = todo.id === selectedId ? " selected" : "";
+
+      return `<option value="${id}"${selected}>${text}</option>`;
+    }),
+  ].join("");
+}
+
+function createPomodoroHistoryController(options = {}) {
+  const storage = options.storage === undefined ? getDefaultStorage() : options.storage;
+  const idFactory = options.idFactory || createSessionId;
+  const nowFactory = options.nowFactory || (() => new Date());
+  const limit = normalizeHistoryLimit(options.limit, POMODORO_HISTORY_LIMIT);
+  let sessions = loadPomodoroHistory(storage).slice(0, limit);
+
+  function persist() {
+    savePomodoroHistory(sessions, storage);
+  }
+
+  return {
+    getSessions() {
+      return sessions.map(clonePomodoroSession);
+    },
+
+    recordSession(todoTitle = "") {
+      const cleanTodoTitle = String(todoTitle || "").trim();
+      const session = {
+        id: idFactory(),
+        completedAt: normalizeTimestamp(nowFactory()),
+        todoTitle: cleanTodoTitle,
+      };
+
+      sessions = [session, ...sessions].slice(0, limit);
+      persist();
+
+      return clonePomodoroSession(session);
+    },
+  };
+}
+
 const POMODORO_DURATIONS = {
   focus: 25 * 60,
   break: 5 * 60,
@@ -165,6 +330,18 @@ function formatDuration(seconds) {
   const remainingSeconds = totalSeconds % 60;
 
   return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+function didCompleteFocusSession(previousState, nextState) {
+  return Boolean(
+    previousState &&
+      nextState &&
+      previousState.mode === "focus" &&
+      previousState.isRunning &&
+      nextState.mode === "break" &&
+      !nextState.isRunning &&
+      nextState.completedFocusSessions > previousState.completedFocusSessions,
+  );
 }
 
 function createPomodoroTimer(options = {}) {
@@ -309,15 +486,47 @@ function initTodoApp(options = {}) {
 function initPomodoroApp(options = {}) {
   const rootDocument = options.document || document;
   const rootWindow = options.window || window;
+  const storage = options.storage === undefined ? getDefaultStorage() : options.storage;
   const timer = options.timer || createPomodoroTimer(options);
+  const history =
+    options.history ||
+    createPomodoroHistoryController({
+      storage,
+      idFactory: options.sessionIdFactory,
+      nowFactory: options.nowFactory,
+    });
+  let todos = loadTodos(storage);
   const timerRoot = rootDocument.querySelector("[data-pomodoro-timer]");
   const display = rootDocument.querySelector("[data-timer-display]");
   const status = rootDocument.querySelector("[data-timer-status]");
   const sessionLabel = rootDocument.querySelector("[data-session-label]");
   const completedCount = rootDocument.querySelector("[data-completed-count]");
   const progress = rootDocument.querySelector("[data-timer-progress]");
+  const linkedTodo = rootDocument.querySelector("[data-linked-todo]");
+  const historyList = rootDocument.querySelector("[data-session-history]");
   const modeButtons = Array.from(rootDocument.querySelectorAll("[data-session-mode]"));
   const actionButtons = Array.from(rootDocument.querySelectorAll("[data-timer-action]"));
+
+  function renderLinkedTodos() {
+    if (!linkedTodo) {
+      return;
+    }
+
+    const selectedId = linkedTodo.value;
+    todos = loadTodos(storage);
+    linkedTodo.innerHTML = renderLinkedTodoOptions(todos, selectedId);
+    linkedTodo.disabled = !todos.length;
+  }
+
+  function getLinkedTodoTitle() {
+    if (!linkedTodo || !linkedTodo.value) {
+      return "";
+    }
+
+    const selectedTodo = todos.find((todo) => todo.id === linkedTodo.value);
+
+    return selectedTodo ? selectedTodo.text : "";
+  }
 
   function render() {
     const state = timer.getState();
@@ -335,6 +544,10 @@ function initPomodoroApp(options = {}) {
     sessionLabel.textContent = state.mode === "focus" ? "Focus" : "Break";
     completedCount.textContent = String(state.completedFocusSessions);
     progress.style.width = `${Math.min(100, Math.max(0, progressPercent))}%`;
+
+    if (historyList) {
+      historyList.innerHTML = renderPomodoroHistory(history.getSessions());
+    }
 
     modeButtons.forEach((button) => {
       const isActiveMode = button.dataset.sessionMode === state.mode;
@@ -383,18 +596,23 @@ function initPomodoroApp(options = {}) {
   });
 
   const intervalId = rootWindow.setInterval(() => {
-    const wasRunning = timer.getState().isRunning;
+    const previousState = timer.getState();
+    const nextState = timer.tick(1);
 
-    timer.tick(1);
+    if (didCompleteFocusSession(previousState, nextState)) {
+      history.recordSession(getLinkedTodoTitle());
+    }
 
-    if (wasRunning || timer.getState().isRunning) {
+    if (previousState.isRunning || nextState.isRunning) {
       render();
     }
   }, 1000);
 
+  renderLinkedTodos();
   render();
 
   return {
+    history,
     timer,
     stop() {
       rootWindow.clearInterval(intervalId);
@@ -417,12 +635,17 @@ if (typeof document !== "undefined") {
 
 if (typeof module !== "undefined") {
   module.exports = {
+    createPomodoroHistoryController,
     createTodoController,
     createPomodoroTimer,
+    didCompleteFocusSession,
     formatDuration,
     initPomodoroApp,
+    loadPomodoroHistory,
     loadTodos,
+    renderPomodoroHistory,
     renderTodos,
+    savePomodoroHistory,
     saveTodos,
   };
 }
