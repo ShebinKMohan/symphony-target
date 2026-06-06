@@ -198,6 +198,31 @@ function isInputOrTextareaTarget(target) {
   return false;
 }
 
+function getActiveElementFromEvent(event) {
+  const target = event && event.target;
+
+  if (target && target.ownerDocument && target.ownerDocument.activeElement) {
+    return target.ownerDocument.activeElement;
+  }
+
+  if (target && target.activeElement) {
+    return target.activeElement;
+  }
+
+  if (typeof document !== "undefined") {
+    return document.activeElement;
+  }
+
+  return null;
+}
+
+function isInputOrTextareaFocus(event) {
+  return (
+    isInputOrTextareaTarget(event.target) ||
+    isInputOrTextareaTarget(getActiveElementFromEvent(event))
+  );
+}
+
 function isPomodoroSpaceShortcut(event) {
   return event.key === " " || event.key === "Spacebar" || event.code === "Space";
 }
@@ -206,7 +231,7 @@ function handlePomodoroShortcut(event, timer, render) {
   if (
     !isPomodoroSpaceShortcut(event) ||
     event.repeat ||
-    isInputOrTextareaTarget(event.target)
+    isInputOrTextareaFocus(event)
   ) {
     return false;
   }

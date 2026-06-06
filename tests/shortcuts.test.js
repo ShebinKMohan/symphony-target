@@ -145,3 +145,26 @@ test("Space does not toggle the Pomodoro timer from inputs or textareas", () => 
     assert.equal(timer.getState().isRunning, false);
   }
 });
+
+test("Space does not toggle the Pomodoro timer when document focus is in a text field", () => {
+  const timer = createPomodoroTimer({ focusSeconds: 10, breakSeconds: 5 });
+  const activeElement = { tagName: "INPUT" };
+  const event = createKeyboardEvent({
+    key: " ",
+    code: "Space",
+    target: {
+      tagName: "BODY",
+      ownerDocument: {
+        activeElement,
+      },
+    },
+  });
+
+  const handled = handlePomodoroShortcut(event, timer, () => {
+    throw new Error("Space should not render the timer while input focus is active");
+  });
+
+  assert.equal(handled, false);
+  assert.equal(event.defaultPrevented, false);
+  assert.equal(timer.getState().isRunning, false);
+});
