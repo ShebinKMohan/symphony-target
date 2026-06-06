@@ -15,3 +15,10 @@ test("index page exposes the Pomodoro timer UI hooks", () => {
   assert.match(html, /data-timer-action="pause"/);
   assert.match(html, /data-timer-action="reset"/);
 });
+
+test("index page exposes the todo UI hooks", () => {
+  assert.match(html, /data-todo-form/);
+  assert.match(html, /data-todo-input/);
+  assert.match(html, /data-todo-list/);
+  assert.match(html, /data-todo-count/);
+});

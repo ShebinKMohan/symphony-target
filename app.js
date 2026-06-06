@@ -140,6 +140,92 @@ function renderTodos(todos) {
     .join("");
 }
 
+function preventKeyboardDefault(event) {
+  if (event && typeof event.preventDefault === "function") {
+    event.preventDefault();
+  }
+}
+
+function addTodoFromInput(controller, input, render) {
+  const todo = controller.addTodo(input.value);
+
+  if (!todo) {
+    return false;
+  }
+
+  input.value = "";
+
+  if (typeof input.focus === "function") {
+    input.focus();
+  }
+
+  if (typeof render === "function") {
+    render();
+  }
+
+  return true;
+}
+
+function handleTodoInputShortcut(event, options) {
+  if (event.key === "Enter") {
+    preventKeyboardDefault(event);
+    addTodoFromInput(options.controller, options.input, options.render);
+    return true;
+  }
+
+  if (event.key === "Escape") {
+    preventKeyboardDefault(event);
+    options.input.value = "";
+    return true;
+  }
+
+  return false;
+}
+
+function isInputOrTextareaTarget(target) {
+  let element = target;
+
+  while (element) {
+    const tagName = String(element.tagName || element.nodeName || "").toLowerCase();
+
+    if (tagName === "input" || tagName === "textarea") {
+      return true;
+    }
+
+    element = element.parentElement || null;
+  }
+
+  return false;
+}
+
+function isPomodoroSpaceShortcut(event) {
+  return event.key === " " || event.key === "Spacebar" || event.code === "Space";
+}
+
+function handlePomodoroShortcut(event, timer, render) {
+  if (
+    !isPomodoroSpaceShortcut(event) ||
+    event.repeat ||
+    isInputOrTextareaTarget(event.target)
+  ) {
+    return false;
+  }
+
+  preventKeyboardDefault(event);
+
+  if (timer.getState().isRunning) {
+    timer.pause();
+  } else {
+    timer.start();
+  }
+
+  if (typeof render === "function") {
+    render();
+  }
+
+  return true;
+}
+
 const POMODORO_DURATIONS = {
   focus: 25 * 60,
   break: 5 * 60,
@@ -273,14 +359,11 @@ function initTodoApp(options = {}) {
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
+    addTodoFromInput(controller, input, render);
+  });
 
-    const todo = controller.addTodo(input.value);
-
-    if (todo) {
-      input.value = "";
-      input.focus();
-      render();
-    }
+  input.addEventListener("keydown", (event) => {
+    handleTodoInputShortcut(event, { controller, input, render });
   });
 
   list.addEventListener("click", (event) => {
@@ -382,6 +465,12 @@ function initPomodoroApp(options = {}) {
     });
   });
 
+  const handleKeydown = (event) => {
+    handlePomodoroShortcut(event, timer, render);
+  };
+
+  rootDocument.addEventListener("keydown", handleKeydown);
+
   const intervalId = rootWindow.setInterval(() => {
     const wasRunning = timer.getState().isRunning;
 
@@ -398,6 +487,7 @@ function initPomodoroApp(options = {}) {
     timer,
     stop() {
       rootWindow.clearInterval(intervalId);
+      rootDocument.removeEventListener("keydown", handleKeydown);
     },
   };
 }
@@ -406,7 +496,6 @@ if (typeof document !== "undefined") {
   document.addEventListener("DOMContentLoaded", () => {
     if (document.querySelector("[data-pomodoro-timer]")) {
       initPomodoroApp();
-      return;
     }
 
     if (document.querySelector("[data-todo-form]")) {
@@ -420,7 +509,10 @@ if (typeof module !== "undefined") {
     createTodoController,
     createPomodoroTimer,
     formatDuration,
+    handlePomodoroShortcut,
+    handleTodoInputShortcut,
     initPomodoroApp,
+    initTodoApp,
     loadTodos,
     renderTodos,
     saveTodos,
