@@ -140,6 +140,120 @@ function renderTodos(todos) {
     .join("");
 }
 
+const POMODORO_DURATIONS = {
+  focus: 25 * 60,
+  break: 5 * 60,
+};
+
+function normalizeDuration(value, fallback) {
+  const parsedValue = Number(value);
+
+  if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+    return fallback;
+  }
+
+  return Math.floor(parsedValue);
+}
+
+function getReadyStatus(mode) {
+  return mode === "break" ? "Ready for a break" : "Ready to focus";
+}
+
+function formatDuration(seconds) {
+  const totalSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+  const minutes = Math.floor(totalSeconds / 60);
+  const remainingSeconds = totalSeconds % 60;
+
+  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+function createPomodoroTimer(options = {}) {
+  const durations = {
+    focus: normalizeDuration(options.focusSeconds, POMODORO_DURATIONS.focus),
+    break: normalizeDuration(options.breakSeconds, POMODORO_DURATIONS.break),
+  };
+  let mode = "focus";
+  let isRunning = false;
+  let remainingSeconds = durations[mode];
+  let completedFocusSessions = 0;
+  let statusText = getReadyStatus(mode);
+
+  function getState() {
+    return {
+      mode,
+      isRunning,
+      remainingSeconds,
+      durationSeconds: durations[mode],
+      completedFocusSessions,
+      statusText,
+    };
+  }
+
+  function setMode(nextMode, nextStatusText) {
+    if (!Object.prototype.hasOwnProperty.call(durations, nextMode)) {
+      return;
+    }
+
+    mode = nextMode;
+    isRunning = false;
+    remainingSeconds = durations[mode];
+    statusText = nextStatusText || getReadyStatus(mode);
+  }
+
+  function completeSession() {
+    if (mode === "focus") {
+      completedFocusSessions += 1;
+      setMode("break", "Focus complete. Start your break.");
+      return;
+    }
+
+    setMode("focus", "Break complete. Ready to focus.");
+  }
+
+  return {
+    getState,
+
+    start() {
+      isRunning = true;
+      statusText = mode === "focus" ? "Focus session running" : "Break session running";
+      return getState();
+    },
+
+    pause() {
+      isRunning = false;
+      statusText = "Paused";
+      return getState();
+    },
+
+    reset() {
+      isRunning = false;
+      remainingSeconds = durations[mode];
+      statusText = getReadyStatus(mode);
+      return getState();
+    },
+
+    switchMode(nextMode) {
+      setMode(nextMode);
+      return getState();
+    },
+
+    tick(seconds = 1) {
+      if (!isRunning) {
+        return getState();
+      }
+
+      const elapsedSeconds = normalizeDuration(seconds, 1);
+      remainingSeconds = Math.max(0, remainingSeconds - elapsedSeconds);
+
+      if (remainingSeconds === 0) {
+        completeSession();
+      }
+
+      return getState();
+    },
+  };
+}
+
 function initTodoApp(options = {}) {
   const rootDocument = options.document || document;
   const controller = createTodoController({ storage: options.storage });
@@ -192,13 +306,121 @@ function initTodoApp(options = {}) {
   return controller;
 }
 
+function initPomodoroApp(options = {}) {
+  const rootDocument = options.document || document;
+  const rootWindow = options.window || window;
+  const timer = options.timer || createPomodoroTimer(options);
+  const timerRoot = rootDocument.querySelector("[data-pomodoro-timer]");
+  const display = rootDocument.querySelector("[data-timer-display]");
+  const status = rootDocument.querySelector("[data-timer-status]");
+  const sessionLabel = rootDocument.querySelector("[data-session-label]");
+  const completedCount = rootDocument.querySelector("[data-completed-count]");
+  const progress = rootDocument.querySelector("[data-timer-progress]");
+  const modeButtons = Array.from(rootDocument.querySelectorAll("[data-session-mode]"));
+  const actionButtons = Array.from(rootDocument.querySelectorAll("[data-timer-action]"));
+
+  function render() {
+    const state = timer.getState();
+    const progressPercent =
+      state.durationSeconds === 0
+        ? 0
+        : ((state.durationSeconds - state.remainingSeconds) / state.durationSeconds) * 100;
+
+    if (timerRoot) {
+      timerRoot.dataset.sessionMode = state.mode;
+    }
+
+    display.textContent = formatDuration(state.remainingSeconds);
+    status.textContent = state.statusText;
+    sessionLabel.textContent = state.mode === "focus" ? "Focus" : "Break";
+    completedCount.textContent = String(state.completedFocusSessions);
+    progress.style.width = `${Math.min(100, Math.max(0, progressPercent))}%`;
+
+    modeButtons.forEach((button) => {
+      const isActiveMode = button.dataset.sessionMode === state.mode;
+      button.setAttribute("aria-pressed", String(isActiveMode));
+      button.disabled = state.isRunning;
+    });
+
+    actionButtons.forEach((button) => {
+      const action = button.dataset.timerAction;
+
+      if (action === "start") {
+        button.disabled = state.isRunning;
+      }
+
+      if (action === "pause") {
+        button.disabled = !state.isRunning;
+      }
+    });
+  }
+
+  modeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      timer.switchMode(button.dataset.sessionMode);
+      render();
+    });
+  });
+
+  actionButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const action = button.dataset.timerAction;
+
+      if (action === "start") {
+        timer.start();
+      }
+
+      if (action === "pause") {
+        timer.pause();
+      }
+
+      if (action === "reset") {
+        timer.reset();
+      }
+
+      render();
+    });
+  });
+
+  const intervalId = rootWindow.setInterval(() => {
+    const wasRunning = timer.getState().isRunning;
+
+    timer.tick(1);
+
+    if (wasRunning || timer.getState().isRunning) {
+      render();
+    }
+  }, 1000);
+
+  render();
+
+  return {
+    timer,
+    stop() {
+      rootWindow.clearInterval(intervalId);
+    },
+  };
+}
+
 if (typeof document !== "undefined") {
-  document.addEventListener("DOMContentLoaded", () => initTodoApp());
+  document.addEventListener("DOMContentLoaded", () => {
+    if (document.querySelector("[data-pomodoro-timer]")) {
+      initPomodoroApp();
+      return;
+    }
+
+    if (document.querySelector("[data-todo-form]")) {
+      initTodoApp();
+    }
+  });
 }
 
 if (typeof module !== "undefined") {
   module.exports = {
     createTodoController,
+    createPomodoroTimer,
+    formatDuration,
+    initPomodoroApp,
     loadTodos,
     renderTodos,
     saveTodos,

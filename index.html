@@ -3,27 +3,39 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Todo</title>
+    <title>Pomodoro Timer</title>
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
     <main class="app-shell" aria-labelledby="app-title">
-      <section class="todo-panel">
+      <section class="timer-panel" data-pomodoro-timer>
         <header class="app-header">
           <div>
-            <p class="eyebrow">Todo</p>
-            <h1 id="app-title">Today</h1>
+            <p class="eyebrow">Pomodoro</p>
+            <h1 id="app-title">Focus Timer</h1>
           </div>
-          <span class="todo-count" data-todo-count>0 active / 0 complete</span>
+          <span class="session-count"><span data-completed-count>0</span> focus sessions</span>
         </header>
 
-        <form class="todo-form" data-todo-form>
-          <label class="sr-only" for="todo-input">New todo</label>
-          <input id="todo-input" data-todo-input type="text" autocomplete="off" placeholder="Add a todo">
-          <button type="submit">Add</button>
-        </form>
+        <div class="session-tabs" aria-label="Session type">
+          <button class="session-tab" type="button" data-session-mode="focus" aria-pressed="true">Focus</button>
+          <button class="session-tab" type="button" data-session-mode="break" aria-pressed="false">Break</button>
+        </div>
 
-        <ul class="todo-list" data-todo-list aria-live="polite"></ul>
+        <section class="timer-face" aria-live="polite">
+          <p class="session-label" data-session-label>Focus</p>
+          <div class="timer-display" data-timer-display>25:00</div>
+          <div class="progress-track" aria-hidden="true">
+            <div class="progress-bar" data-timer-progress></div>
+          </div>
+          <p class="timer-status" data-timer-status>Ready to focus</p>
+        </section>
+
+        <div class="timer-controls">
+          <button class="primary-action" type="button" data-timer-action="start">Start</button>
+          <button type="button" data-timer-action="pause" disabled>Pause</button>
+          <button type="button" data-timer-action="reset">Reset</button>
+        </div>
       </section>
     </main>
 
