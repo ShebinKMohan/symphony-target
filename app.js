@@ -1,6 +1,7 @@
 const STORAGE_KEY = "todos";
 const POMODORO_HISTORY_STORAGE_KEY = "pomodoroSessions";
 const POMODORO_HISTORY_LIMIT = 5;
+const TODO_CHANGE_EVENT = "todos:changed";
 
 function getDefaultStorage() {
   if (typeof window !== "undefined" && window.localStorage) {
@@ -157,6 +158,16 @@ function createTodoController(options = {}) {
       persist();
     },
   };
+}
+
+function dispatchTodoChange(rootDocument) {
+  if (!rootDocument || typeof rootDocument.dispatchEvent !== "function") {
+    return;
+  }
+
+  const event =
+    typeof Event === "function" ? new Event(TODO_CHANGE_EVENT) : { type: TODO_CHANGE_EVENT };
+  rootDocument.dispatchEvent(event);
 }
 
 function escapeHtml(value) {
@@ -457,6 +468,7 @@ function initTodoApp(options = {}) {
       input.value = "";
       input.focus();
       render();
+      dispatchTodoChange(rootDocument);
     }
   });
 
@@ -476,6 +488,7 @@ function initTodoApp(options = {}) {
     }
 
     render();
+    dispatchTodoChange(rootDocument);
   });
 
   render();
@@ -516,6 +529,11 @@ function initPomodoroApp(options = {}) {
     todos = loadTodos(storage);
     linkedTodo.innerHTML = renderLinkedTodoOptions(todos, selectedId);
     linkedTodo.disabled = !todos.length;
+  }
+
+  function handleTodosChanged() {
+    renderLinkedTodos();
+    render();
   }
 
   function getLinkedTodoTitle() {
@@ -595,6 +613,10 @@ function initPomodoroApp(options = {}) {
     });
   });
 
+  if (typeof rootDocument.addEventListener === "function") {
+    rootDocument.addEventListener(TODO_CHANGE_EVENT, handleTodosChanged);
+  }
+
   const intervalId = rootWindow.setInterval(() => {
     const previousState = timer.getState();
     const nextState = timer.tick(1);
@@ -616,19 +638,21 @@ function initPomodoroApp(options = {}) {
     timer,
     stop() {
       rootWindow.clearInterval(intervalId);
+      if (typeof rootDocument.removeEventListener === "function") {
+        rootDocument.removeEventListener(TODO_CHANGE_EVENT, handleTodosChanged);
+      }
     },
   };
 }
 
 if (typeof document !== "undefined") {
   document.addEventListener("DOMContentLoaded", () => {
-    if (document.querySelector("[data-pomodoro-timer]")) {
-      initPomodoroApp();
-      return;
-    }
-
     if (document.querySelector("[data-todo-form]")) {
       initTodoApp();
+    }
+
+    if (document.querySelector("[data-pomodoro-timer]")) {
+      initPomodoroApp();
     }
   });
 }
