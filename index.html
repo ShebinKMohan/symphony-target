@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Todo</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell" aria-labelledby="app-title">
+      <section class="todo-panel">
+        <header class="app-header">
+          <div>
+            <p class="eyebrow">Todo</p>
+            <h1 id="app-title">Today</h1>
+          </div>
+          <span class="todo-count" data-todo-count>0 active / 0 complete</span>
+        </header>
+
+        <form class="todo-form" data-todo-form>
+          <label class="sr-only" for="todo-input">New todo</label>
+          <input id="todo-input" data-todo-input type="text" autocomplete="off" placeholder="Add a todo">
+          <button type="submit">Add</button>
+        </form>
+
+        <ul class="todo-list" data-todo-list aria-live="polite"></ul>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
