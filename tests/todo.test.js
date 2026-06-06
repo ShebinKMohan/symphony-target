@@ -32,12 +32,88 @@ test("adding a todo stores it and renders it immediately", () => {
     id: "todo-1",
     text: "Buy milk",
     completed: false,
+    priority: "Medium",
+    dueDate: "",
   });
   assert.equal(app.getTodos().length, 1);
   assert.match(renderTodos(app.getTodos()), /Buy milk/);
   assert.equal(
     storage.getItem("todos"),
-    JSON.stringify([{ id: "todo-1", text: "Buy milk", completed: false }]),
+    JSON.stringify([
+      { id: "todo-1", text: "Buy milk", completed: false, priority: "Medium", dueDate: "" },
+    ]),
+  );
+});
+
+test("priority and due date can be edited and persisted", () => {
+  const storage = createStorage();
+  const app = createTodoController({
+    storage,
+    idFactory: () => "todo-1",
+  });
+
+  app.addTodo("File taxes");
+  app.updateTodoMetadata("todo-1", { priority: "High", dueDate: "2026-06-30" });
+
+  assert.deepEqual(app.getTodos(), [
+    {
+      id: "todo-1",
+      text: "File taxes",
+      completed: false,
+      priority: "High",
+      dueDate: "2026-06-30",
+    },
+  ]);
+  assert.equal(
+    storage.getItem("todos"),
+    JSON.stringify([
+      {
+        id: "todo-1",
+        text: "File taxes",
+        completed: false,
+        priority: "High",
+        dueDate: "2026-06-30",
+      },
+    ]),
+  );
+
+  const html = renderTodos(app.getTodos());
+
+  assert.match(html, /<option value="High" selected>/);
+  assert.match(html, /value="2026-06-30"/);
+});
+
+test("due dates can be cleared without losing priority", () => {
+  const storage = createStorage();
+  const app = createTodoController({
+    storage,
+    idFactory: () => "todo-1",
+  });
+
+  app.addTodo("Renew passport");
+  app.updateTodoMetadata("todo-1", { priority: "Low", dueDate: "2026-07-10" });
+  app.updateTodoMetadata("todo-1", { dueDate: "" });
+
+  assert.deepEqual(app.getTodos(), [
+    {
+      id: "todo-1",
+      text: "Renew passport",
+      completed: false,
+      priority: "Low",
+      dueDate: "",
+    },
+  ]);
+  assert.equal(
+    storage.getItem("todos"),
+    JSON.stringify([
+      {
+        id: "todo-1",
+        text: "Renew passport",
+        completed: false,
+        priority: "Low",
+        dueDate: "",
+      },
+    ]),
   );
 });
 
@@ -82,8 +158,9 @@ test("saved todos are loaded after a refresh", () => {
   const app = createTodoController({ storage });
 
   assert.deepEqual(app.getTodos(), [
-    { id: "todo-1", text: "Persist me", completed: true },
+    { id: "todo-1", text: "Persist me", completed: true, priority: "Medium", dueDate: "" },
   ]);
   assert.match(renderTodos(app.getTodos()), /Persist me/);
   assert.match(renderTodos(app.getTodos()), /is-completed/);
+  assert.match(renderTodos(app.getTodos()), /<option value="Medium" selected>/);
 });

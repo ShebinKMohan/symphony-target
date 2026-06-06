@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Pomodoro Timer</title>
+    <title>Pomodoro Todo Planner</title>
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -36,6 +36,24 @@
           <button type="button" data-timer-action="pause" disabled>Pause</button>
           <button type="button" data-timer-action="reset">Reset</button>
         </div>
+      </section>
+
+      <section class="todo-panel" aria-labelledby="todo-title">
+        <header class="app-header">
+          <div>
+            <p class="eyebrow">Todo</p>
+            <h2 id="todo-title">Today</h2>
+          </div>
+          <span class="todo-count" data-todo-count>0 active / 0 complete</span>
+        </header>
+
+        <form class="todo-form" data-todo-form>
+          <label class="sr-only" for="todo-input">New todo</label>
+          <input id="todo-input" data-todo-input type="text" autocomplete="off" placeholder="Add a todo">
+          <button type="submit">Add</button>
+        </form>
+
+        <ul class="todo-list" data-todo-list aria-live="polite"></ul>
       </section>
     </main>
 

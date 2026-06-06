@@ -1,4 +1,7 @@
 const STORAGE_KEY = "todos";
+const PRIORITIES = ["Low", "Medium", "High"];
+const DEFAULT_PRIORITY = "Medium";
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 function getDefaultStorage() {
   if (typeof window !== "undefined" && window.localStorage) {
@@ -13,7 +16,21 @@ function cloneTodo(todo) {
     id: todo.id,
     text: todo.text,
     completed: Boolean(todo.completed),
+    priority: normalizePriority(todo.priority),
+    dueDate: normalizeDueDate(todo.dueDate),
   };
+}
+
+function normalizePriority(priority) {
+  return PRIORITIES.includes(priority) ? priority : DEFAULT_PRIORITY;
+}
+
+function normalizeDueDate(dueDate) {
+  if (typeof dueDate !== "string") {
+    return "";
+  }
+
+  return DATE_PATTERN.test(dueDate) ? dueDate : "";
 }
 
 function loadTodos(storage = getDefaultStorage()) {
@@ -78,6 +95,8 @@ function createTodoController(options = {}) {
         id: idFactory(),
         text: cleanText,
         completed: false,
+        priority: DEFAULT_PRIORITY,
+        dueDate: "",
       };
 
       todos = [todo, ...todos];
@@ -96,6 +115,32 @@ function createTodoController(options = {}) {
     deleteTodo(id) {
       todos = todos.filter((todo) => todo.id !== id);
       persist();
+    },
+
+    updateTodoMetadata(id, metadata = {}) {
+      let updatedTodo = null;
+
+      todos = todos.map((todo) => {
+        if (todo.id !== id) {
+          return todo;
+        }
+
+        updatedTodo = {
+          ...todo,
+          priority: Object.prototype.hasOwnProperty.call(metadata, "priority")
+            ? normalizePriority(metadata.priority)
+            : todo.priority,
+          dueDate: Object.prototype.hasOwnProperty.call(metadata, "dueDate")
+            ? normalizeDueDate(metadata.dueDate)
+            : todo.dueDate,
+        };
+
+        return updatedTodo;
+      });
+
+      persist();
+
+      return updatedTodo ? cloneTodo(updatedTodo) : null;
     },
   };
 }
@@ -123,16 +168,39 @@ function renderTodos(todos) {
     .map((todo) => {
       const id = escapeHtml(todo.id);
       const text = escapeHtml(todo.text);
+      const priority = normalizePriority(todo.priority);
+      const dueDate = escapeHtml(normalizeDueDate(todo.dueDate));
       const completedClass = todo.completed ? " is-completed" : "";
       const checked = todo.completed ? " checked" : "";
+      const priorityOptions = PRIORITIES.map((priorityOption) => {
+        const selected = priorityOption === priority ? " selected" : "";
+
+        return `<option value="${priorityOption}"${selected}>${priorityOption}</option>`;
+      }).join("");
+      const clearDisabled = dueDate ? "" : " disabled";
 
       return `
-        <li class="todo-item${completedClass}" data-id="${id}">
+        <li class="todo-item${completedClass}" data-id="${id}" data-priority="${escapeHtml(priority.toLowerCase())}">
           <label class="todo-check">
             <input type="checkbox" data-action="toggle" data-id="${id}"${checked} aria-label="Toggle ${text}">
             <span class="checkmark" aria-hidden="true"></span>
           </label>
-          <span class="todo-text">${text}</span>
+          <div class="todo-content">
+            <span class="todo-text">${text}</span>
+            <div class="todo-meta">
+              <label class="todo-field">
+                <span>Priority</span>
+                <select data-action="priority" data-id="${id}" aria-label="Priority for ${text}">
+                  ${priorityOptions}
+                </select>
+              </label>
+              <label class="todo-field">
+                <span>Due</span>
+                <input type="date" data-action="due-date" data-id="${id}" value="${dueDate}" aria-label="Due date for ${text}">
+              </label>
+              <button class="clear-due-button" type="button" data-action="clear-due-date" data-id="${id}"${clearDisabled}>Clear</button>
+            </div>
+          </div>
           <button class="delete-button" type="button" data-action="delete" data-id="${id}" aria-label="Delete ${text}">Delete</button>
         </li>
       `;
@@ -292,10 +360,30 @@ function initTodoApp(options = {}) {
 
     if (actionTarget.dataset.action === "toggle") {
       controller.toggleTodo(actionTarget.dataset.id);
+    } else if (actionTarget.dataset.action === "delete") {
+      controller.deleteTodo(actionTarget.dataset.id);
+    } else if (actionTarget.dataset.action === "clear-due-date") {
+      controller.updateTodoMetadata(actionTarget.dataset.id, { dueDate: "" });
+    } else {
+      return;
     }
 
-    if (actionTarget.dataset.action === "delete") {
-      controller.deleteTodo(actionTarget.dataset.id);
+    render();
+  });
+
+  list.addEventListener("change", (event) => {
+    const actionTarget = event.target.closest("[data-action]");
+
+    if (!actionTarget) {
+      return;
+    }
+
+    if (actionTarget.dataset.action === "priority") {
+      controller.updateTodoMetadata(actionTarget.dataset.id, { priority: actionTarget.value });
+    } else if (actionTarget.dataset.action === "due-date") {
+      controller.updateTodoMetadata(actionTarget.dataset.id, { dueDate: actionTarget.value });
+    } else {
+      return;
     }
 
     render();
@@ -406,7 +494,6 @@ if (typeof document !== "undefined") {
   document.addEventListener("DOMContentLoaded", () => {
     if (document.querySelector("[data-pomodoro-timer]")) {
       initPomodoroApp();
-      return;
     }
 
     if (document.querySelector("[data-todo-form]")) {
