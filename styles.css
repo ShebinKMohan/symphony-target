@@ -315,10 +315,11 @@ h2 {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 10px;
-  margin-bottom: 18px;
+  margin-bottom: 10px;
 }
 
-.todo-form input {
+.todo-form input,
+.todo-search input {
   min-width: 0;
   min-height: 46px;
   padding: 0 14px;
@@ -329,13 +330,22 @@ h2 {
   outline: none;
 }
 
-.todo-form input:focus {
+.todo-form input:focus,
+.todo-search input:focus {
   border-color: var(--focus);
   box-shadow: 0 0 0 3px rgba(18, 124, 116, 0.18);
 }
 
 .todo-form button {
   padding: 0 20px;
+}
+
+.todo-search {
+  margin-bottom: 18px;
+}
+
+.todo-search input {
+  width: 100%;
 }
 
 .todo-list {

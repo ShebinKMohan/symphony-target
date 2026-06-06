@@ -8,12 +8,28 @@ function getDefaultStorage() {
   return null;
 }
 
+function getTodoTitle(todo) {
+  if (typeof todo.text === "string") {
+    return todo.text;
+  }
+
+  if (typeof todo.title === "string") {
+    return todo.title;
+  }
+
+  return "";
+}
+
 function cloneTodo(todo) {
   const clonedTodo = {
     id: todo.id,
-    text: todo.text,
+    text: getTodoTitle(todo),
     completed: Boolean(todo.completed),
   };
+
+  if (typeof todo.notes === "string") {
+    clonedTodo.notes = todo.notes;
+  }
 
   const pomodoroSessions = getPomodoroSessions(todo);
 
@@ -67,7 +83,7 @@ function loadTodos(storage = getDefaultStorage()) {
     }
 
     return parsedTodos
-      .filter((todo) => todo && typeof todo.id === "string" && typeof todo.text === "string")
+      .filter((todo) => todo && typeof todo.id === "string" && getTodoTitle(todo))
       .map(cloneTodo);
   } catch (_error) {
     return [];
@@ -80,6 +96,38 @@ function saveTodos(todos, storage = getDefaultStorage()) {
   }
 
   storage.setItem(STORAGE_KEY, JSON.stringify(todos.map(cloneTodo)));
+}
+
+function normalizeSearchTerm(search) {
+  return String(search || "").trim().toLowerCase();
+}
+
+function getTodoSearchText(todo) {
+  return [todo.text, todo.title, todo.notes]
+    .filter((value) => typeof value === "string")
+    .join(" ")
+    .toLowerCase();
+}
+
+function todoMatchesStatus(todo, status) {
+  if (status === "active") {
+    return !todo.completed;
+  }
+
+  if (status === "completed") {
+    return todo.completed;
+  }
+
+  return true;
+}
+
+function filterTodos(todos, filters = {}) {
+  const search = normalizeSearchTerm(filters.search);
+
+  return todos
+    .filter((todo) => todoMatchesStatus(todo, filters.status))
+    .filter((todo) => !search || getTodoSearchText(todo).includes(search))
+    .map(cloneTodo);
 }
 
 function createId() {
@@ -322,8 +370,8 @@ function createTodoController(options = {}) {
   }
 
   return {
-    getTodos() {
-      return todos.map(cloneTodo);
+    getTodos(filters = {}) {
+      return filterTodos(todos, filters);
     },
 
     addTodo(text) {
@@ -625,13 +673,17 @@ function initTodoApp(options = {}) {
   const controller = createTodoController({ storage: options.storage });
   const form = rootDocument.querySelector("[data-todo-form]");
   const input = rootDocument.querySelector("[data-todo-input]");
+  const searchInput = rootDocument.querySelector("[data-todo-search]");
   const list = rootDocument.querySelector("[data-todo-list]");
   const count = rootDocument.querySelector("[data-todo-count]");
 
   function render() {
-    const todos = controller.getTodos();
-    const completed = todos.filter((todo) => todo.completed).length;
-    const active = todos.length - completed;
+    const allTodos = controller.getTodos();
+    const completed = allTodos.filter((todo) => todo.completed).length;
+    const active = allTodos.length - completed;
+    const todos = controller.getTodos({
+      search: searchInput ? searchInput.value : "",
+    });
 
     list.innerHTML = renderTodos(todos);
     count.textContent = `${active} active / ${completed} complete`;
@@ -670,6 +722,10 @@ function initTodoApp(options = {}) {
 
     render();
   });
+
+  if (searchInput) {
+    searchInput.addEventListener("input", render);
+  }
 
   render();
 
@@ -863,6 +919,7 @@ if (typeof module !== "undefined") {
     createCountdownTimer,
     createTimerCompletionNotifier,
     createTodoController,
+    filterTodos,
     createPomodoroTimer,
     formatDuration,
     initPomodoroApp,
