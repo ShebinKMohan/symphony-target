@@ -28,20 +28,23 @@ body {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-button {
+button,
+input {
   font: inherit;
 }
 
 .app-shell {
-  width: min(100% - 32px, 720px);
+  width: min(100% - 32px, 760px);
   min-height: 100vh;
   margin: 0 auto;
   display: grid;
-  place-items: center;
+  align-content: center;
+  gap: 18px;
   padding: 32px 0;
 }
 
-.timer-panel {
+.timer-panel,
+.todo-panel {
   width: 100%;
   padding: 28px;
   background: var(--panel);
@@ -66,13 +69,19 @@ button {
   text-transform: uppercase;
 }
 
-h1 {
+h1,
+h2 {
   margin: 0;
   font-size: 3rem;
   line-height: 1;
 }
 
-.session-count {
+h2 {
+  font-size: 2.1rem;
+}
+
+.session-count,
+.todo-count {
   flex: 0 0 auto;
   min-width: 150px;
   padding-top: 8px;
@@ -94,7 +103,10 @@ h1 {
 
 .session-tab,
 .timer-controls button,
-.notification-row button {
+.notification-row button,
+.todo-form button,
+.pomodoro-button,
+.delete-button {
   min-height: 44px;
   border: 0;
   border-radius: 8px;
@@ -193,22 +205,26 @@ h1 {
 }
 
 .timer-controls button,
-.notification-row button {
+.notification-row button,
+.todo-form button {
   color: var(--text);
   background: #eef2f5;
 }
 
 .timer-controls button:hover:not(:disabled),
-.notification-row button:hover:not(:disabled) {
+.notification-row button:hover:not(:disabled),
+.todo-form button:hover {
   background: #e3e9ee;
 }
 
-.timer-controls .primary-action {
+.timer-controls .primary-action,
+.pomodoro-button {
   color: #ffffff;
   background: var(--focus);
 }
 
-.timer-controls .primary-action:hover:not(:disabled) {
+.timer-controls .primary-action:hover:not(:disabled),
+.pomodoro-button:hover {
   background: var(--focus-strong);
 }
 
@@ -240,6 +256,106 @@ h1 {
   min-width: 0;
 }
 
+.todo-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.todo-form input {
+  min-width: 0;
+  min-height: 46px;
+  padding: 0 14px;
+  color: var(--text);
+  background: #fbfcfe;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  outline: none;
+}
+
+.todo-form input:focus {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px rgba(18, 124, 116, 0.18);
+}
+
+.todo-form button {
+  padding: 0 20px;
+}
+
+.todo-list {
+  display: grid;
+  gap: 10px;
+  min-height: 56px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.todo-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  background: #f8fafb;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.todo-check {
+  display: grid;
+  place-items: center;
+}
+
+.todo-content {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.todo-text {
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.todo-focus {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.todo-item.is-completed {
+  opacity: 0.72;
+}
+
+.todo-item.is-completed .todo-text {
+  text-decoration: line-through;
+}
+
+.pomodoro-button,
+.delete-button {
+  min-height: 38px;
+  padding: 0 12px;
+}
+
+.delete-button {
+  color: var(--break);
+  background: #f4e8ea;
+}
+
+.delete-button:hover {
+  background: #ecd7db;
+}
+
+.empty-state {
+  padding: 18px;
+  color: var(--muted);
+  text-align: center;
+  background: #f8fafb;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -255,11 +371,12 @@ h1 {
 @media (max-width: 560px) {
   .app-shell {
     width: min(100% - 24px, 720px);
-    align-items: start;
+    align-content: start;
     padding-top: 20px;
   }
 
-  .timer-panel {
+  .timer-panel,
+  .todo-panel {
     padding: 20px;
   }
 
@@ -272,7 +389,12 @@ h1 {
     font-size: 2.25rem;
   }
 
-  .session-count {
+  h2 {
+    font-size: 1.8rem;
+  }
+
+  .session-count,
+  .todo-count {
     min-width: 0;
     padding-top: 0;
     text-align: left;
@@ -289,7 +411,13 @@ h1 {
   }
 
   .timer-controls,
-  .notification-row {
+  .notification-row,
+  .todo-form,
+  .todo-item {
     grid-template-columns: 1fr;
+  }
+
+  .todo-check {
+    justify-content: start;
   }
 }

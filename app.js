@@ -9,11 +9,48 @@ function getDefaultStorage() {
 }
 
 function cloneTodo(todo) {
-  return {
+  const clonedTodo = {
     id: todo.id,
     text: todo.text,
     completed: Boolean(todo.completed),
   };
+
+  const pomodoroSessions = getPomodoroSessions(todo);
+
+  if (pomodoroSessions.length) {
+    clonedTodo.pomodoroSessions = pomodoroSessions;
+  }
+
+  return clonedTodo;
+}
+
+function getPomodoroSessions(todo) {
+  if (!Array.isArray(todo.pomodoroSessions)) {
+    return [];
+  }
+
+  return todo.pomodoroSessions
+    .filter(
+      (session) =>
+        session &&
+        typeof session.id === "string" &&
+        Number.isFinite(Number(session.minutes)) &&
+        Number(session.minutes) > 0 &&
+        typeof session.completedAt === "string",
+    )
+    .map((session) => ({
+      id: session.id,
+      minutes: Number(session.minutes),
+      completedAt: session.completedAt,
+    }));
+}
+
+function getFocusMinutes(todo) {
+  return getPomodoroSessions(todo).reduce((total, session) => total + session.minutes, 0);
+}
+
+function formatPomodoroCount(count) {
+  return `${count} ${count === 1 ? "pomodoro" : "pomodoros"}`;
 }
 
 function loadTodos(storage = getDefaultStorage()) {
@@ -276,6 +313,8 @@ function createCountdownTimer(options = {}) {
 function createTodoController(options = {}) {
   const storage = options.storage === undefined ? getDefaultStorage() : options.storage;
   const idFactory = options.idFactory || createId;
+  const sessionIdFactory = options.sessionIdFactory || createId;
+  const now = options.now || (() => new Date().toISOString());
   let todos = loadTodos(storage);
 
   function persist() {
@@ -317,6 +356,42 @@ function createTodoController(options = {}) {
       todos = todos.filter((todo) => todo.id !== id);
       persist();
     },
+
+    logPomodoroSession(id, minutes = 25) {
+      const sessionMinutes = Number(minutes);
+
+      if (!Number.isFinite(sessionMinutes) || sessionMinutes <= 0) {
+        return null;
+      }
+
+      const session = {
+        id: sessionIdFactory(),
+        minutes: sessionMinutes,
+        completedAt: String(now()),
+      };
+      let sessionLogged = false;
+
+      todos = todos.map((todo) => {
+        if (todo.id !== id) {
+          return todo;
+        }
+
+        sessionLogged = true;
+
+        return {
+          ...todo,
+          pomodoroSessions: [...getPomodoroSessions(todo), session],
+        };
+      });
+
+      if (!sessionLogged) {
+        return null;
+      }
+
+      persist();
+
+      return { ...session };
+    },
   };
 }
 
@@ -343,6 +418,9 @@ function renderTodos(todos) {
     .map((todo) => {
       const id = escapeHtml(todo.id);
       const text = escapeHtml(todo.text);
+      const pomodoroSessions = getPomodoroSessions(todo);
+      const pomodoroCount = pomodoroSessions.length;
+      const focusMinutes = getFocusMinutes(todo);
       const completedClass = todo.completed ? " is-completed" : "";
       const checked = todo.completed ? " checked" : "";
 
@@ -352,7 +430,11 @@ function renderTodos(todos) {
             <input type="checkbox" data-action="toggle" data-id="${id}"${checked} aria-label="Toggle ${text}">
             <span class="checkmark" aria-hidden="true"></span>
           </label>
-          <span class="todo-text">${text}</span>
+          <div class="todo-content">
+            <span class="todo-text">${text}</span>
+            <span class="todo-focus">${formatPomodoroCount(pomodoroCount)} / ${focusMinutes} min focus</span>
+          </div>
+          <button class="pomodoro-button" type="button" data-action="pomodoro" data-id="${id}" aria-label="Log a Pomodoro for ${text}">+25m</button>
           <button class="delete-button" type="button" data-action="delete" data-id="${id}" aria-label="Delete ${text}">Delete</button>
         </li>
       `;
@@ -513,6 +595,10 @@ function initTodoApp(options = {}) {
       controller.deleteTodo(actionTarget.dataset.id);
     }
 
+    if (actionTarget.dataset.action === "pomodoro") {
+      controller.logPomodoroSession(actionTarget.dataset.id);
+    }
+
     render();
   });
 
@@ -660,7 +746,6 @@ if (typeof document !== "undefined") {
   document.addEventListener("DOMContentLoaded", () => {
     if (document.querySelector("[data-pomodoro-timer]")) {
       initPomodoroApp();
-      return;
     }
 
     if (document.querySelector("[data-todo-form]")) {

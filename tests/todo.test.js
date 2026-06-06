@@ -87,3 +87,59 @@ test("saved todos are loaded after a refresh", () => {
   assert.match(renderTodos(app.getTodos()), /Persist me/);
   assert.match(renderTodos(app.getTodos()), /is-completed/);
 });
+
+test("pomodoro sessions are associated with todos and persisted", () => {
+  const storage = createStorage();
+  const app = createTodoController({
+    storage,
+    idFactory: () => "todo-1",
+    sessionIdFactory: () => "session-1",
+    now: () => "2026-06-06T10:00:00.000Z",
+  });
+
+  app.addTodo("Draft proposal");
+
+  const session = app.logPomodoroSession("todo-1");
+
+  assert.deepEqual(session, {
+    id: "session-1",
+    minutes: 25,
+    completedAt: "2026-06-06T10:00:00.000Z",
+  });
+  assert.deepEqual(app.getTodos()[0].pomodoroSessions, [session]);
+  assert.equal(
+    storage.getItem("todos"),
+    JSON.stringify([
+      {
+        id: "todo-1",
+        text: "Draft proposal",
+        completed: false,
+        pomodoroSessions: [session],
+      },
+    ]),
+  );
+});
+
+test("todo rows show tracked focus time for pomodoro sessions", () => {
+  const app = createTodoController({
+    storage: createStorage({
+      todos: JSON.stringify([
+        {
+          id: "todo-1",
+          text: "Write tests",
+          completed: false,
+          pomodoroSessions: [
+            { id: "session-1", minutes: 25, completedAt: "2026-06-06T10:00:00.000Z" },
+            { id: "session-2", minutes: 25, completedAt: "2026-06-06T10:30:00.000Z" },
+          ],
+        },
+      ]),
+    }),
+  });
+
+  const html = renderTodos(app.getTodos());
+
+  assert.match(html, /2 pomodoros/);
+  assert.match(html, /50 min focus/);
+  assert.match(html, /data-action="pomodoro"/);
+});
