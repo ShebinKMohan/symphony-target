@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Focus Timer</title>
+    <title>Pomodoro Todos</title>
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -22,6 +22,19 @@
           <button class="session-tab" type="button" data-session-mode="break" aria-pressed="false">Break</button>
         </div>
 
+        <form class="duration-settings" data-duration-settings>
+          <label>
+            <span>Focus min</span>
+            <input data-duration-input="focus" type="number" min="1" step="1" inputmode="numeric" value="25">
+          </label>
+          <label>
+            <span>Break min</span>
+            <input data-duration-input="break" type="number" min="1" step="1" inputmode="numeric" value="5">
+          </label>
+          <button type="submit" data-duration-save>Save</button>
+          <span data-duration-status aria-live="polite"></span>
+        </form>
+
         <section class="timer-face" aria-live="polite">
           <p class="session-label" data-session-label>Focus</p>
           <div class="timer-display" data-timer-display>25:00</div>
@@ -35,6 +48,11 @@
           <button class="primary-action" type="button" data-timer-action="start">Start</button>
           <button type="button" data-timer-action="pause" disabled>Pause</button>
           <button type="button" data-timer-action="reset">Reset</button>
+        </div>
+
+        <div class="notification-row">
+          <button type="button" data-notification-permission>Enable notifications</button>
+          <span data-notification-status>Notifications: default</span>
         </div>
       </section>
 
@@ -52,6 +70,11 @@
           <input id="todo-input" data-todo-input type="text" autocomplete="off" placeholder="Add a todo">
           <button type="submit">Add</button>
         </form>
+
+        <div class="todo-search">
+          <label class="sr-only" for="todo-search">Search todos</label>
+          <input id="todo-search" data-todo-search type="search" autocomplete="off" placeholder="Search todos">
+        </div>
 
         <div class="todo-filters" role="group" aria-label="Todo filter">
           <button class="todo-filter" type="button" data-todo-filter="all" aria-pressed="true">All</button>
