@@ -87,3 +87,207 @@ test("saved todos are loaded after a refresh", () => {
   assert.match(renderTodos(app.getTodos()), /Persist me/);
   assert.match(renderTodos(app.getTodos()), /is-completed/);
 });
+
+test("todo notes can be added, edited, cleared, and persisted", () => {
+  const storage = createStorage();
+  const app = createTodoController({
+    storage,
+    idFactory: () => "todo-1",
+  });
+
+  app.addTodo("Draft launch note");
+
+  const addedNote = app.updateTodoNote("todo-1", "  Discuss launch blockers  ");
+
+  assert.deepEqual(addedNote, {
+    id: "todo-1",
+    text: "Draft launch note",
+    completed: false,
+    note: "Discuss launch blockers",
+  });
+  assert.equal(
+    storage.getItem("todos"),
+    JSON.stringify([
+      {
+        id: "todo-1",
+        text: "Draft launch note",
+        completed: false,
+        note: "Discuss launch blockers",
+      },
+    ]),
+  );
+
+  const editedNote = app.updateTodoNote("todo-1", "Send summary after standup");
+
+  assert.equal(editedNote.note, "Send summary after standup");
+
+  const clearedNote = app.updateTodoNote("todo-1", "");
+
+  assert.deepEqual(clearedNote, {
+    id: "todo-1",
+    text: "Draft launch note",
+    completed: false,
+  });
+  assert.equal(
+    storage.getItem("todos"),
+    JSON.stringify([{ id: "todo-1", text: "Draft launch note", completed: false }]),
+  );
+});
+
+test("saved notes render with editable controls and old todos still render", () => {
+  const storage = createStorage({
+    todos: JSON.stringify([
+      {
+        id: "todo-1",
+        text: "Review order",
+        completed: false,
+        note: "Bring receipts & SKU list",
+      },
+      { id: "todo-2", text: "Legacy todo", completed: true },
+    ]),
+  });
+
+  const app = createTodoController({ storage });
+  const html = renderTodos(app.getTodos());
+
+  assert.deepEqual(app.getTodos(), [
+    {
+      id: "todo-1",
+      text: "Review order",
+      completed: false,
+      note: "Bring receipts & SKU list",
+    },
+    { id: "todo-2", text: "Legacy todo", completed: true },
+  ]);
+  assert.match(html, /class="todo-note-input"/);
+  assert.match(html, /data-action="save-note"/);
+  assert.match(html, /data-action="clear-note"/);
+  assert.match(html, /Bring receipts &amp; SKU list/);
+  assert.match(html, /Legacy todo/);
+  assert.doesNotMatch(html, /undefined/);
+});
+
+test("long notes are escaped and kept inside the note editor", () => {
+  const longNote = `${"followup".repeat(24)} <call>`;
+  const html = renderTodos([
+    {
+      id: "todo-1",
+      text: "Handle long note",
+      completed: false,
+      note: longNote,
+    },
+  ]);
+
+  assert.match(html, /class="todo-note-input"/);
+  assert.match(html, /followupfollowup/);
+  assert.match(html, /&lt;call&gt;/);
+});
+
+test("getTodos applies case-insensitive search to todo titles and notes", () => {
+  const app = createTodoController({
+    storage: createStorage({
+      todos: JSON.stringify([
+        { id: "todo-1", text: "Buy Milk", completed: false, notes: "oat carton" },
+        { id: "todo-2", text: "Plan meals", completed: true, notes: "include kale" },
+        { id: "todo-3", text: "File taxes", completed: false, notes: "quarterly receipts" },
+      ]),
+    }),
+  });
+
+  assert.deepEqual(app.getTodos({ search: "milk" }).map((todo) => todo.id), ["todo-1"]);
+  assert.deepEqual(app.getTodos({ search: "KALE" }).map((todo) => todo.id), ["todo-2"]);
+  assert.deepEqual(app.getTodos({ search: "   " }).map((todo) => todo.id), [
+    "todo-1",
+    "todo-2",
+    "todo-3",
+  ]);
+});
+
+test("saved todos with title fields remain searchable", () => {
+  const app = createTodoController({
+    storage: createStorage({
+      todos: JSON.stringify([
+        { id: "todo-1", title: "Buy Milk", completed: false, notes: "oat carton" },
+      ]),
+    }),
+  });
+
+  assert.deepEqual(app.getTodos({ search: "milk" }), [
+    { id: "todo-1", text: "Buy Milk", completed: false, notes: "oat carton" },
+  ]);
+});
+
+test("getTodos combines search with completion status filters", () => {
+  const app = createTodoController({
+    storage: createStorage({
+      todos: JSON.stringify([
+        { id: "todo-1", text: "Call accountant", completed: false, notes: "invoice follow-up" },
+        { id: "todo-2", text: "Archive receipt", completed: true, notes: "invoice paid" },
+        { id: "todo-3", text: "Plan meals", completed: false, notes: "weekly menu" },
+      ]),
+    }),
+  });
+
+  assert.deepEqual(app.getTodos({ search: "invoice", status: "active" }).map((todo) => todo.id), [
+    "todo-1",
+  ]);
+  assert.deepEqual(app.getTodos({ search: "invoice", status: "completed" }).map((todo) => todo.id), [
+    "todo-2",
+  ]);
+});
+
+test("pomodoro sessions are associated with todos and persisted", () => {
+  const storage = createStorage();
+  const app = createTodoController({
+    storage,
+    idFactory: () => "todo-1",
+    sessionIdFactory: () => "session-1",
+    now: () => "2026-06-06T10:00:00.000Z",
+  });
+
+  app.addTodo("Draft proposal");
+
+  const session = app.logPomodoroSession("todo-1");
+
+  assert.deepEqual(session, {
+    id: "session-1",
+    minutes: 25,
+    completedAt: "2026-06-06T10:00:00.000Z",
+  });
+  assert.deepEqual(app.getTodos()[0].pomodoroSessions, [session]);
+  assert.equal(
+    storage.getItem("todos"),
+    JSON.stringify([
+      {
+        id: "todo-1",
+        text: "Draft proposal",
+        completed: false,
+        pomodoroSessions: [session],
+      },
+    ]),
+  );
+});
+
+test("todo rows show tracked focus time for pomodoro sessions", () => {
+  const app = createTodoController({
+    storage: createStorage({
+      todos: JSON.stringify([
+        {
+          id: "todo-1",
+          text: "Write tests",
+          completed: false,
+          pomodoroSessions: [
+            { id: "session-1", minutes: 25, completedAt: "2026-06-06T10:00:00.000Z" },
+            { id: "session-2", minutes: 25, completedAt: "2026-06-06T10:30:00.000Z" },
+          ],
+        },
+      ]),
+    }),
+  });
+
+  const html = renderTodos(app.getTodos());
+
+  assert.match(html, /2 pomodoros/);
+  assert.match(html, /50 min focus/);
+  assert.match(html, /data-action="pomodoro"/);
+});
