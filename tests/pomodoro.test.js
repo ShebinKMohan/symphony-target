@@ -1,7 +1,13 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { createPomodoroTimer, formatDuration } = require("../app");
+const {
+  createPomodoroHistoryController,
+  createPomodoroTimer,
+  didCompleteFocusSession,
+  formatDuration,
+  renderPomodoroHistory,
+} = require("../app");
 
 function createStorage(initial = {}) {
   const store = new Map(Object.entries(initial));
@@ -87,6 +93,66 @@ test("reset restores the current session and mode selection updates duration", (
   assert.equal(timer.getState().remainingSeconds, 4);
   assert.equal(timer.getState().durationSeconds, 4);
   assert.equal(timer.getState().statusText, "Ready for a break");
+});
+
+test("focus completion is detected without changing timer state shape", () => {
+  const timer = createPomodoroTimer({ focusSeconds: 1, breakSeconds: 5 });
+
+  const before = timer.start();
+  const after = timer.tick(1);
+
+  assert.equal(didCompleteFocusSession(before, after), true);
+  assert.equal(didCompleteFocusSession(after, timer.getState()), false);
+});
+
+test("recording a completed focus session persists timestamp and linked todo title", () => {
+  const storage = createStorage();
+  const history = createPomodoroHistoryController({
+    storage,
+    idFactory: () => "session-1",
+    nowFactory: () => new Date("2026-06-06T10:30:00.000Z"),
+  });
+
+  const session = history.recordSession("Write project brief");
+
+  assert.deepEqual(session, {
+    id: "session-1",
+    completedAt: "2026-06-06T10:30:00.000Z",
+    todoTitle: "Write project brief",
+  });
+  assert.deepEqual(history.getSessions(), [session]);
+  assert.equal(
+    storage.getItem("pomodoroSessions"),
+    JSON.stringify([session]),
+  );
+
+  const html = renderPomodoroHistory(history.getSessions());
+
+  assert.match(html, /Write project brief/);
+  assert.match(html, /datetime="2026-06-06T10:30:00.000Z"/);
+});
+
+test("saved Pomodoro history is loaded after a refresh", () => {
+  const storage = createStorage({
+    pomodoroSessions: JSON.stringify([
+      {
+        id: "session-1",
+        completedAt: "2026-06-06T10:30:00.000Z",
+        todoTitle: "Review checklist",
+      },
+    ]),
+  });
+
+  const history = createPomodoroHistoryController({ storage });
+
+  assert.deepEqual(history.getSessions(), [
+    {
+      id: "session-1",
+      completedAt: "2026-06-06T10:30:00.000Z",
+      todoTitle: "Review checklist",
+    },
+  ]);
+  assert.match(renderPomodoroHistory(history.getSessions()), /Review checklist/);
 });
 
 test("pomodoro timer loads saved focus and break durations", () => {

@@ -29,6 +29,7 @@ body {
 }
 
 button,
+select,
 input,
 textarea {
   font: inherit;
@@ -335,6 +336,97 @@ h2 {
 .notification-row button:disabled {
   cursor: not-allowed;
   opacity: 0.52;
+}
+
+.session-context {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.session-context label {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.session-context select {
+  min-width: 0;
+  height: 42px;
+  padding: 0 12px;
+  color: var(--text);
+  background: #fbfcfe;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.session-context select:focus {
+  border-color: var(--focus);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(18, 124, 116, 0.16);
+}
+
+.session-context select:disabled {
+  color: var(--muted);
+  background: #eef2f5;
+}
+
+.history-panel {
+  margin-top: 18px;
+}
+
+.history-panel h2 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.session-history {
+  display: grid;
+  gap: 8px;
+  max-height: 172px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.history-item,
+.history-empty {
+  min-height: 44px;
+  display: grid;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.history-item {
+  grid-template-columns: minmax(112px, 0.44fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.history-time {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.history-todo {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.94rem;
+  font-weight: 700;
+}
+
+.history-empty {
+  color: var(--muted);
+  font-size: 0.94rem;
 }
 
 .todo-header {
@@ -742,5 +834,10 @@ h2 {
 
   .todo-form button {
     width: 100%;
+  }
+
+  .session-context,
+  .history-item {
+    grid-template-columns: 1fr;
   }
 }
