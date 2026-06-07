@@ -8,7 +8,7 @@
   </head>
   <body>
     <main class="app-shell" aria-labelledby="app-title">
-      <section class="timer-panel" data-pomodoro-timer>
+      <section class="timer-panel" data-pomodoro-timer aria-labelledby="app-title">
         <header class="app-header">
           <div>
             <p class="eyebrow">Pomodoro</p>
@@ -81,6 +81,12 @@
         <div class="todo-search">
           <label class="sr-only" for="todo-search">Search todos</label>
           <input id="todo-search" data-todo-search type="search" autocomplete="off" placeholder="Search todos">
+        </div>
+
+        <div class="todo-filters" role="group" aria-label="Todo filter">
+          <button class="todo-filter" type="button" data-todo-filter="all" aria-pressed="true">All</button>
+          <button class="todo-filter" type="button" data-todo-filter="active" aria-pressed="false">Active</button>
+          <button class="todo-filter" type="button" data-todo-filter="completed" aria-pressed="false">Completed</button>
         </div>
 
         <ul class="todo-list" data-todo-list aria-live="polite"></ul>

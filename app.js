@@ -1,4 +1,5 @@
 const STORAGE_KEY = "todos";
+const TODO_FILTERS = new Set(["all", "active", "completed"]);
 
 function getDefaultStorage() {
   if (typeof window !== "undefined" && window.localStorage) {
@@ -157,6 +158,29 @@ function createId() {
   }
 
   return `todo-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function normalizeTodoFilter(filter) {
+  return TODO_FILTERS.has(filter) ? filter : "all";
+}
+
+function getFilteredTodos(todos, filter = "all") {
+  const normalizedFilter = normalizeTodoFilter(filter);
+  const sourceTodos = Array.isArray(todos) ? todos : [];
+
+  return sourceTodos
+    .filter((todo) => {
+      if (normalizedFilter === "active") {
+        return !todo.completed;
+      }
+
+      if (normalizedFilter === "completed") {
+        return todo.completed;
+      }
+
+      return true;
+    })
+    .map(cloneTodo);
 }
 
 function getDefaultNotificationClass() {
@@ -509,9 +533,23 @@ function escapeHtml(value) {
   });
 }
 
-function renderTodos(todos) {
+function getEmptyStateMessage(filter) {
+  const normalizedFilter = normalizeTodoFilter(filter);
+
+  if (normalizedFilter === "active") {
+    return "No active todos";
+  }
+
+  if (normalizedFilter === "completed") {
+    return "No completed todos";
+  }
+
+  return "No todos yet";
+}
+
+function renderTodos(todos, options = {}) {
   if (!todos.length) {
-    return '<li class="empty-state">No todos yet</li>';
+    return `<li class="empty-state">${getEmptyStateMessage(options.filter)}</li>`;
   }
 
   return todos
@@ -949,17 +987,26 @@ function initTodoApp(options = {}) {
   const searchInput = rootDocument.querySelector("[data-todo-search]");
   const list = rootDocument.querySelector("[data-todo-list]");
   const count = rootDocument.querySelector("[data-todo-count]");
+  const filterButtons = Array.from(rootDocument.querySelectorAll("[data-todo-filter]"));
+  let currentFilter = "all";
 
   function render() {
     const allTodos = controller.getTodos();
     const completed = allTodos.filter((todo) => todo.completed).length;
     const active = allTodos.length - completed;
     const todos = controller.getTodos({
+      status: currentFilter,
       search: searchInput ? searchInput.value : "",
     });
 
-    list.innerHTML = renderTodos(todos);
+    list.innerHTML = renderTodos(todos, { filter: currentFilter });
     count.textContent = `${active} active / ${completed} complete`;
+
+    filterButtons.forEach((button) => {
+      const isActiveFilter = normalizeTodoFilter(button.dataset.todoFilter) === currentFilter;
+      button.setAttribute("aria-pressed", String(isActiveFilter));
+      button.classList.toggle("is-active", isActiveFilter);
+    });
   }
 
   form.addEventListener("submit", (event) => {
@@ -1002,6 +1049,13 @@ function initTodoApp(options = {}) {
     }
 
     render();
+  });
+
+  filterButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      currentFilter = normalizeTodoFilter(button.dataset.todoFilter);
+      render();
+    });
   });
 
   if (searchInput) {
@@ -1225,6 +1279,7 @@ if (typeof module !== "undefined") {
     filterTodos,
     createPomodoroTimer,
     formatDuration,
+    getFilteredTodos,
     handlePomodoroShortcut,
     handleTodoInputShortcut,
     initPomodoroApp,

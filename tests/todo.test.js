@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { createTodoController, renderTodos } = require("../app");
+const { createTodoController, getFilteredTodos, renderTodos } = require("../app");
 
 function createStorage(initial = {}) {
   const store = new Map(Object.entries(initial));
@@ -86,6 +86,39 @@ test("saved todos are loaded after a refresh", () => {
   ]);
   assert.match(renderTodos(app.getTodos()), /Persist me/);
   assert.match(renderTodos(app.getTodos()), /is-completed/);
+});
+
+test("todo filters return all, active, and completed without changing storage", () => {
+  const storage = createStorage();
+  const ids = ["todo-1", "todo-2"];
+  const app = createTodoController({
+    storage,
+    idFactory: () => ids.shift(),
+  });
+
+  app.addTodo("Read notes");
+  app.addTodo("Send update");
+  app.toggleTodo("todo-1");
+
+  assert.deepEqual(
+    getFilteredTodos(app.getTodos(), "all").map((todo) => todo.text),
+    ["Send update", "Read notes"],
+  );
+  assert.deepEqual(
+    getFilteredTodos(app.getTodos(), "active").map((todo) => todo.text),
+    ["Send update"],
+  );
+  assert.deepEqual(
+    getFilteredTodos(app.getTodos(), "completed").map((todo) => todo.text),
+    ["Read notes"],
+  );
+  assert.equal(
+    storage.getItem("todos"),
+    JSON.stringify([
+      { id: "todo-2", text: "Send update", completed: false },
+      { id: "todo-1", text: "Read notes", completed: true },
+    ]),
+  );
 });
 
 test("todo notes can be added, edited, cleared, and persisted", () => {
@@ -290,4 +323,10 @@ test("todo rows show tracked focus time for pomodoro sessions", () => {
   assert.match(html, /2 pomodoros/);
   assert.match(html, /50 min focus/);
   assert.match(html, /data-action="pomodoro"/);
+});
+
+test("filtered empty states are short and specific", () => {
+  assert.match(renderTodos([], { filter: "all" }), /No todos yet/);
+  assert.match(renderTodos([], { filter: "active" }), /No active todos/);
+  assert.match(renderTodos([], { filter: "completed" }), /No completed todos/);
 });
