@@ -14,7 +14,14 @@
             <p class="eyebrow">Pomodoro</p>
             <h1 id="app-title">Focus Timer</h1>
           </div>
-          <span class="session-count"><span data-completed-count>0</span> focus sessions</span>
+          <div class="timer-summary">
+            <span class="session-count"><span data-completed-count>0</span> focus sessions</span>
+            <div class="daily-focus-summary" data-daily-focus-summary aria-label="Today's focus summary">
+              <span>Today</span>
+              <span><strong data-daily-focus-sessions>0</strong> <span data-daily-focus-session-label>sessions</span></span>
+              <span><strong data-daily-focus-minutes>0</strong> min</span>
+            </div>
+          </div>
         </header>
 
         <div class="session-tabs" aria-label="Session type">

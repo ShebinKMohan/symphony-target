@@ -81,6 +81,15 @@ h2 {
   font-size: 2.1rem;
 }
 
+.timer-summary {
+  flex: 0 0 auto;
+  min-width: 170px;
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  padding-top: 6px;
+}
+
 .session-count,
 .todo-count {
   flex: 0 0 auto;
@@ -89,6 +98,26 @@ h2 {
   color: var(--muted);
   font-size: 0.95rem;
   text-align: right;
+}
+
+.timer-summary .session-count {
+  min-width: 0;
+  padding-top: 0;
+}
+
+.daily-focus-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px 10px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.daily-focus-summary strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 
 .session-tabs {
@@ -516,11 +545,20 @@ h2 {
     font-size: 1.8rem;
   }
 
+  .timer-summary,
   .session-count,
   .todo-count {
     min-width: 0;
     padding-top: 0;
     text-align: left;
+  }
+
+  .timer-summary {
+    justify-items: start;
+  }
+
+  .daily-focus-summary {
+    justify-content: flex-start;
   }
 
   .duration-settings {

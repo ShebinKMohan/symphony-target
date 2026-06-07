@@ -556,6 +556,7 @@ const POMODORO_DURATIONS = {
   break: 5 * 60,
 };
 const POMODORO_SETTINGS_KEY = "pomodoroSettings";
+const POMODORO_DAILY_FOCUS_KEY = "pomodoroDailyFocusSessions";
 
 function getReadyStatus(mode) {
   return mode === "break" ? "Ready for a break" : "Ready to focus";
@@ -602,6 +603,90 @@ function savePomodoroSettings(settings, storage) {
   );
 }
 
+function normalizeDate(value) {
+  const date = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date;
+}
+
+function isSameLocalDay(leftValue, rightValue) {
+  const leftDate = normalizeDate(leftValue);
+  const rightDate = normalizeDate(rightValue);
+
+  if (!leftDate || !rightDate) {
+    return false;
+  }
+
+  return (
+    leftDate.getFullYear() === rightDate.getFullYear() &&
+    leftDate.getMonth() === rightDate.getMonth() &&
+    leftDate.getDate() === rightDate.getDate()
+  );
+}
+
+function getDailyFocusSessions(storage) {
+  if (!storage) {
+    return [];
+  }
+
+  try {
+    const rawSessions = storage.getItem(POMODORO_DAILY_FOCUS_KEY);
+    const parsedSessions = rawSessions ? JSON.parse(rawSessions) : [];
+
+    if (!Array.isArray(parsedSessions)) {
+      return [];
+    }
+
+    return parsedSessions
+      .filter(
+        (session) =>
+          session &&
+          typeof session.id === "string" &&
+          Number.isFinite(Number(session.minutes)) &&
+          Number(session.minutes) > 0 &&
+          typeof session.completedAt === "string",
+      )
+      .map((session) => ({
+        id: session.id,
+        minutes: Number(session.minutes),
+        completedAt: session.completedAt,
+      }));
+  } catch (_error) {
+    return [];
+  }
+}
+
+function saveDailyFocusSessions(sessions, storage) {
+  if (!storage) {
+    return;
+  }
+
+  storage.setItem(POMODORO_DAILY_FOCUS_KEY, JSON.stringify(sessions));
+}
+
+function summarizeDailyFocusSessions(sessions, today) {
+  return sessions.reduce(
+    (summary, session) => {
+      if (!isSameLocalDay(session.completedAt, today)) {
+        return summary;
+      }
+
+      return {
+        completedFocusSessions: summary.completedFocusSessions + 1,
+        totalFocusMinutes: summary.totalFocusMinutes + session.minutes,
+      };
+    },
+    {
+      completedFocusSessions: 0,
+      totalFocusMinutes: 0,
+    },
+  );
+}
+
 function createPomodoroTimer(options = {}) {
   const storage = options.storage === undefined ? getDefaultStorage() : options.storage;
   const savedSettings = loadPomodoroSettings(storage);
@@ -609,7 +694,10 @@ function createPomodoroTimer(options = {}) {
     focus: normalizeDuration(options.focusSeconds, savedSettings.focusMinutes * 60),
     break: normalizeDuration(options.breakSeconds, savedSettings.breakMinutes * 60),
   };
+  const sessionIdFactory = options.sessionIdFactory || createId;
+  const now = options.now || (() => new Date().toISOString());
   const onSessionComplete = options.onSessionComplete || (() => {});
+  let dailyFocusSessions = getDailyFocusSessions(storage);
   let mode = "focus";
   let isRunning = false;
   let remainingSeconds = durations[mode];
@@ -623,6 +711,7 @@ function createPomodoroTimer(options = {}) {
       remainingSeconds,
       durationSeconds: durations[mode],
       completedFocusSessions,
+      dailyFocusSummary: summarizeDailyFocusSessions(dailyFocusSessions, now()),
       statusText,
     };
   }
@@ -653,11 +742,23 @@ function createPomodoroTimer(options = {}) {
     });
   }
 
+  function logDailyFocusSession() {
+    const session = {
+      id: sessionIdFactory(),
+      minutes: getDurationMinutes(durations.focus),
+      completedAt: String(now()),
+    };
+
+    dailyFocusSessions = [...dailyFocusSessions, session];
+    saveDailyFocusSessions(dailyFocusSessions, storage);
+  }
+
   function completeSession() {
     const completedMode = mode;
 
     if (mode === "focus") {
       completedFocusSessions += 1;
+      logDailyFocusSession();
       setMode("break", "Focus complete. Start your break.");
       notifySessionComplete(completedMode);
       return;
@@ -822,6 +923,9 @@ function initPomodoroApp(options = {}) {
   const status = rootDocument.querySelector("[data-timer-status]");
   const sessionLabel = rootDocument.querySelector("[data-session-label]");
   const completedCount = rootDocument.querySelector("[data-completed-count]");
+  const dailyFocusSessions = rootDocument.querySelector("[data-daily-focus-sessions]");
+  const dailyFocusSessionLabel = rootDocument.querySelector("[data-daily-focus-session-label]");
+  const dailyFocusMinutes = rootDocument.querySelector("[data-daily-focus-minutes]");
   const progress = rootDocument.querySelector("[data-timer-progress]");
   const permissionButton = rootDocument.querySelector("[data-notification-permission]");
   const permissionStatus = rootDocument.querySelector("[data-notification-status]");
@@ -865,6 +969,18 @@ function initPomodoroApp(options = {}) {
     status.textContent = state.statusText;
     sessionLabel.textContent = state.mode === "focus" ? "Focus" : "Break";
     completedCount.textContent = String(state.completedFocusSessions);
+
+    if (dailyFocusSessions && dailyFocusMinutes) {
+      const dailySessionCount = state.dailyFocusSummary.completedFocusSessions;
+
+      dailyFocusSessions.textContent = String(dailySessionCount);
+      dailyFocusMinutes.textContent = String(state.dailyFocusSummary.totalFocusMinutes);
+
+      if (dailyFocusSessionLabel) {
+        dailyFocusSessionLabel.textContent = dailySessionCount === 1 ? "session" : "sessions";
+      }
+    }
+
     progress.style.width = `${Math.min(100, Math.max(0, progressPercent))}%`;
 
     modeButtons.forEach((button) => {
