@@ -88,6 +88,101 @@ test("saved todos are loaded after a refresh", () => {
   assert.match(renderTodos(app.getTodos()), /is-completed/);
 });
 
+test("todo notes can be added, edited, cleared, and persisted", () => {
+  const storage = createStorage();
+  const app = createTodoController({
+    storage,
+    idFactory: () => "todo-1",
+  });
+
+  app.addTodo("Draft launch note");
+
+  const addedNote = app.updateTodoNote("todo-1", "  Discuss launch blockers  ");
+
+  assert.deepEqual(addedNote, {
+    id: "todo-1",
+    text: "Draft launch note",
+    completed: false,
+    note: "Discuss launch blockers",
+  });
+  assert.equal(
+    storage.getItem("todos"),
+    JSON.stringify([
+      {
+        id: "todo-1",
+        text: "Draft launch note",
+        completed: false,
+        note: "Discuss launch blockers",
+      },
+    ]),
+  );
+
+  const editedNote = app.updateTodoNote("todo-1", "Send summary after standup");
+
+  assert.equal(editedNote.note, "Send summary after standup");
+
+  const clearedNote = app.updateTodoNote("todo-1", "");
+
+  assert.deepEqual(clearedNote, {
+    id: "todo-1",
+    text: "Draft launch note",
+    completed: false,
+  });
+  assert.equal(
+    storage.getItem("todos"),
+    JSON.stringify([{ id: "todo-1", text: "Draft launch note", completed: false }]),
+  );
+});
+
+test("saved notes render with editable controls and old todos still render", () => {
+  const storage = createStorage({
+    todos: JSON.stringify([
+      {
+        id: "todo-1",
+        text: "Review order",
+        completed: false,
+        note: "Bring receipts & SKU list",
+      },
+      { id: "todo-2", text: "Legacy todo", completed: true },
+    ]),
+  });
+
+  const app = createTodoController({ storage });
+  const html = renderTodos(app.getTodos());
+
+  assert.deepEqual(app.getTodos(), [
+    {
+      id: "todo-1",
+      text: "Review order",
+      completed: false,
+      note: "Bring receipts & SKU list",
+    },
+    { id: "todo-2", text: "Legacy todo", completed: true },
+  ]);
+  assert.match(html, /class="todo-note-input"/);
+  assert.match(html, /data-action="save-note"/);
+  assert.match(html, /data-action="clear-note"/);
+  assert.match(html, /Bring receipts &amp; SKU list/);
+  assert.match(html, /Legacy todo/);
+  assert.doesNotMatch(html, /undefined/);
+});
+
+test("long notes are escaped and kept inside the note editor", () => {
+  const longNote = `${"followup".repeat(24)} <call>`;
+  const html = renderTodos([
+    {
+      id: "todo-1",
+      text: "Handle long note",
+      completed: false,
+      note: longNote,
+    },
+  ]);
+
+  assert.match(html, /class="todo-note-input"/);
+  assert.match(html, /followupfollowup/);
+  assert.match(html, /&lt;call&gt;/);
+});
+
 test("getTodos applies case-insensitive search to todo titles and notes", () => {
   const app = createTodoController({
     storage: createStorage({

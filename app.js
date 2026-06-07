@@ -26,6 +26,7 @@ function cloneTodo(todo) {
     text: getTodoTitle(todo),
     completed: Boolean(todo.completed),
   };
+  const note = getTodoNote(todo);
 
   if (typeof todo.notes === "string") {
     clonedTodo.notes = todo.notes;
@@ -33,11 +34,31 @@ function cloneTodo(todo) {
 
   const pomodoroSessions = getPomodoroSessions(todo);
 
+  if (note) {
+    clonedTodo.note = note;
+  }
+
   if (pomodoroSessions.length) {
     clonedTodo.pomodoroSessions = pomodoroSessions;
   }
 
   return clonedTodo;
+}
+
+function normalizeTodoNote(note) {
+  if (typeof note !== "string") {
+    return "";
+  }
+
+  return note.trim();
+}
+
+function getTodoNote(todo) {
+  if (!todo || typeof todo.note !== "string") {
+    return "";
+  }
+
+  return normalizeTodoNote(todo.note);
 }
 
 function getPomodoroSessions(todo) {
@@ -405,6 +426,37 @@ function createTodoController(options = {}) {
       persist();
     },
 
+    updateTodoNote(id, note) {
+      const cleanNote = normalizeTodoNote(note);
+      let updatedTodo = null;
+
+      todos = todos.map((todo) => {
+        if (todo.id !== id) {
+          return todo;
+        }
+
+        const nextTodo = { ...todo };
+
+        if (cleanNote) {
+          nextTodo.note = cleanNote;
+        } else {
+          delete nextTodo.note;
+        }
+
+        updatedTodo = cloneTodo(nextTodo);
+
+        return nextTodo;
+      });
+
+      if (!updatedTodo) {
+        return null;
+      }
+
+      persist();
+
+      return updatedTodo;
+    },
+
     logPomodoroSession(id, minutes = 25) {
       const sessionMinutes = Number(minutes);
 
@@ -471,6 +523,7 @@ function renderTodos(todos) {
       const focusMinutes = getFocusMinutes(todo);
       const completedClass = todo.completed ? " is-completed" : "";
       const checked = todo.completed ? " checked" : "";
+      const note = escapeHtml(getTodoNote(todo));
 
       return `
         <li class="todo-item${completedClass}" data-id="${id}">
@@ -481,6 +534,14 @@ function renderTodos(todos) {
           <div class="todo-content">
             <span class="todo-text">${text}</span>
             <span class="todo-focus">${formatPomodoroCount(pomodoroCount)} / ${focusMinutes} min focus</span>
+            <div class="todo-note">
+              <label class="sr-only" for="todo-note-${id}">Note for ${text}</label>
+              <textarea class="todo-note-input" id="todo-note-${id}" data-note-input data-id="${id}" rows="2" maxlength="500" placeholder="Add a note">${note}</textarea>
+              <div class="todo-note-actions">
+                <button class="note-button" type="button" data-action="save-note" data-id="${id}">Save note</button>
+                <button class="note-button note-clear-button" type="button" data-action="clear-note" data-id="${id}">Clear</button>
+              </div>
+            </div>
           </div>
           <button class="pomodoro-button" type="button" data-action="pomodoro" data-id="${id}" aria-label="Log a Pomodoro for ${text}">+25m</button>
           <button class="delete-button" type="button" data-action="delete" data-id="${id}" aria-label="Delete ${text}">Delete</button>
@@ -819,6 +880,17 @@ function initTodoApp(options = {}) {
 
     if (actionTarget.dataset.action === "pomodoro") {
       controller.logPomodoroSession(actionTarget.dataset.id);
+    }
+
+    if (actionTarget.dataset.action === "save-note") {
+      const todoItem = actionTarget.closest(".todo-item");
+      const noteInput = todoItem && todoItem.querySelector("[data-note-input]");
+
+      controller.updateTodoNote(actionTarget.dataset.id, noteInput ? noteInput.value : "");
+    }
+
+    if (actionTarget.dataset.action === "clear-note") {
+      controller.updateTodoNote(actionTarget.dataset.id, "");
     }
 
     render();

@@ -29,7 +29,8 @@ body {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
 }
 
@@ -135,12 +136,14 @@ h2 {
 .notification-row button,
 .todo-form button,
 .pomodoro-button,
-.delete-button {
+.delete-button,
+.note-button {
   min-height: 44px;
   border: 0;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .session-tab {
@@ -405,7 +408,7 @@ h2 {
 .todo-content {
   min-width: 0;
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 
 .todo-text {
@@ -416,6 +419,59 @@ h2 {
 .todo-focus {
   color: var(--muted);
   font-size: 0.86rem;
+}
+
+.todo-note {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.todo-note-input {
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  padding: 10px 12px;
+  color: var(--text);
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.todo-note-input:focus {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px rgba(18, 124, 116, 0.16);
+  outline: none;
+}
+
+.todo-note-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.note-button {
+  min-height: 34px;
+  padding: 0 10px;
+  color: var(--text);
+  background: #eef2f5;
+  font-size: 0.84rem;
+}
+
+.note-button:hover {
+  background: #e3e9ee;
+}
+
+.note-clear-button {
+  color: var(--break);
+  background: #f4e8ea;
+}
+
+.note-clear-button:hover {
+  background: #ecd7db;
 }
 
 .todo-item.is-completed {
@@ -464,19 +520,21 @@ h2 {
 
 @media (max-width: 560px) {
   .app-shell {
-    width: min(100% - 24px, 720px);
+    width: min(100% - 20px, 720px);
     align-content: start;
-    padding-top: 20px;
+    gap: 14px;
+    padding: 20px 0;
   }
 
   .timer-panel,
   .todo-panel {
-    padding: 20px;
+    padding: 18px;
   }
 
   .app-header {
     display: grid;
     gap: 10px;
+    margin-bottom: 20px;
   }
 
   h1 {
@@ -503,25 +561,122 @@ h2 {
     justify-content: flex-start;
   }
 
+  .duration-settings {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .duration-settings button,
+  .duration-settings span[data-duration-status] {
+    grid-column: 1 / -1;
+  }
+
+  .duration-settings button {
+    width: 100%;
+  }
+
   .timer-face {
-    min-height: 260px;
-    padding: 24px 18px;
+    min-height: 220px;
+    gap: 12px;
+    padding: 20px 14px;
   }
 
   .timer-display {
-    min-height: 90px;
-    font-size: 4rem;
+    min-height: 78px;
+    font-size: clamp(3rem, 17vw, 4rem);
   }
 
-  .timer-controls,
-  .duration-settings,
-  .notification-row,
-  .todo-form,
-  .todo-item {
+  .timer-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .timer-controls button {
+    min-width: 0;
+    padding: 0 8px;
+  }
+
+  .notification-row {
     grid-template-columns: 1fr;
+    gap: 8px;
+    align-items: start;
+  }
+
+  .notification-row button {
+    width: 100%;
+  }
+
+  .todo-form {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .todo-form button {
+    padding: 0 14px;
+  }
+
+  .todo-search {
+    margin-bottom: 14px;
+  }
+
+  .todo-item {
+    grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    gap: 10px 8px;
+    align-items: start;
+    padding: 10px;
   }
 
   .todo-check {
+    grid-column: 1;
+    grid-row: 1;
     justify-content: start;
+    padding-top: 3px;
+  }
+
+  .todo-content {
+    grid-column: 2 / 4;
+    grid-row: 1;
+  }
+
+  .pomodoro-button,
+  .delete-button {
+    min-width: 0;
+    padding: 0 8px;
+  }
+
+  .pomodoro-button {
+    grid-column: 2;
+    grid-row: 2;
+    width: 100%;
+  }
+
+  .delete-button {
+    grid-column: 3;
+    grid-row: 2;
+    width: 100%;
+  }
+}
+
+@media (max-width: 360px) {
+  .app-shell {
+    width: min(100% - 16px, 720px);
+  }
+
+  .timer-panel,
+  .todo-panel {
+    padding: 16px;
+  }
+
+  .timer-controls {
+    gap: 6px;
+  }
+
+  .timer-controls button,
+  .pomodoro-button,
+  .delete-button {
+    font-size: 0.92rem;
   }
 }
