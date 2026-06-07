@@ -24,6 +24,7 @@ test("index page exposes the Pomodoro timer UI hooks", () => {
 test("index page exposes Todo hooks for Pomodoro session tracking", () => {
   assert.match(html, /data-todo-form/);
   assert.match(html, /data-todo-input/);
+  assert.match(html, /data-todo-search/);
   assert.match(html, /data-todo-count/);
   assert.match(html, /data-todo-list/);
 });

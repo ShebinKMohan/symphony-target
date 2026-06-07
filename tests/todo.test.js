@@ -183,6 +183,59 @@ test("long notes are escaped and kept inside the note editor", () => {
   assert.match(html, /&lt;call&gt;/);
 });
 
+test("getTodos applies case-insensitive search to todo titles and notes", () => {
+  const app = createTodoController({
+    storage: createStorage({
+      todos: JSON.stringify([
+        { id: "todo-1", text: "Buy Milk", completed: false, notes: "oat carton" },
+        { id: "todo-2", text: "Plan meals", completed: true, notes: "include kale" },
+        { id: "todo-3", text: "File taxes", completed: false, notes: "quarterly receipts" },
+      ]),
+    }),
+  });
+
+  assert.deepEqual(app.getTodos({ search: "milk" }).map((todo) => todo.id), ["todo-1"]);
+  assert.deepEqual(app.getTodos({ search: "KALE" }).map((todo) => todo.id), ["todo-2"]);
+  assert.deepEqual(app.getTodos({ search: "   " }).map((todo) => todo.id), [
+    "todo-1",
+    "todo-2",
+    "todo-3",
+  ]);
+});
+
+test("saved todos with title fields remain searchable", () => {
+  const app = createTodoController({
+    storage: createStorage({
+      todos: JSON.stringify([
+        { id: "todo-1", title: "Buy Milk", completed: false, notes: "oat carton" },
+      ]),
+    }),
+  });
+
+  assert.deepEqual(app.getTodos({ search: "milk" }), [
+    { id: "todo-1", text: "Buy Milk", completed: false, notes: "oat carton" },
+  ]);
+});
+
+test("getTodos combines search with completion status filters", () => {
+  const app = createTodoController({
+    storage: createStorage({
+      todos: JSON.stringify([
+        { id: "todo-1", text: "Call accountant", completed: false, notes: "invoice follow-up" },
+        { id: "todo-2", text: "Archive receipt", completed: true, notes: "invoice paid" },
+        { id: "todo-3", text: "Plan meals", completed: false, notes: "weekly menu" },
+      ]),
+    }),
+  });
+
+  assert.deepEqual(app.getTodos({ search: "invoice", status: "active" }).map((todo) => todo.id), [
+    "todo-1",
+  ]);
+  assert.deepEqual(app.getTodos({ search: "invoice", status: "completed" }).map((todo) => todo.id), [
+    "todo-2",
+  ]);
+});
+
 test("pomodoro sessions are associated with todos and persisted", () => {
   const storage = createStorage();
   const app = createTodoController({
