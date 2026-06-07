@@ -551,6 +551,117 @@ function renderTodos(todos) {
     .join("");
 }
 
+function preventKeyboardDefault(event) {
+  if (event && typeof event.preventDefault === "function") {
+    event.preventDefault();
+  }
+}
+
+function addTodoFromInput(controller, input, render) {
+  const todo = controller.addTodo(input.value);
+
+  if (!todo) {
+    return false;
+  }
+
+  input.value = "";
+
+  if (typeof input.focus === "function") {
+    input.focus();
+  }
+
+  if (typeof render === "function") {
+    render();
+  }
+
+  return true;
+}
+
+function handleTodoInputShortcut(event, options) {
+  if (event.key === "Enter") {
+    preventKeyboardDefault(event);
+    addTodoFromInput(options.controller, options.input, options.render);
+    return true;
+  }
+
+  if (event.key === "Escape") {
+    preventKeyboardDefault(event);
+    options.input.value = "";
+    return true;
+  }
+
+  return false;
+}
+
+function isInputOrTextareaTarget(target) {
+  let element = target;
+
+  while (element) {
+    const tagName = String(element.tagName || element.nodeName || "").toLowerCase();
+
+    if (tagName === "input" || tagName === "textarea") {
+      return true;
+    }
+
+    element = element.parentElement || null;
+  }
+
+  return false;
+}
+
+function getActiveElementFromEvent(event) {
+  const target = event && event.target;
+
+  if (target && target.ownerDocument && target.ownerDocument.activeElement) {
+    return target.ownerDocument.activeElement;
+  }
+
+  if (target && target.activeElement) {
+    return target.activeElement;
+  }
+
+  if (typeof document !== "undefined") {
+    return document.activeElement;
+  }
+
+  return null;
+}
+
+function isInputOrTextareaFocus(event) {
+  return (
+    isInputOrTextareaTarget(event.target) ||
+    isInputOrTextareaTarget(getActiveElementFromEvent(event))
+  );
+}
+
+function isPomodoroSpaceShortcut(event) {
+  return event.key === " " || event.key === "Spacebar" || event.code === "Space";
+}
+
+function handlePomodoroShortcut(event, timer, render) {
+  if (
+    !isPomodoroSpaceShortcut(event) ||
+    event.repeat ||
+    isInputOrTextareaFocus(event)
+  ) {
+    return false;
+  }
+
+  preventKeyboardDefault(event);
+
+  if (timer.getState().isRunning) {
+    timer.pause();
+  } else {
+    timer.start();
+  }
+
+  if (typeof render === "function") {
+    render();
+  }
+
+  return true;
+}
+
 const POMODORO_DURATIONS = {
   focus: 25 * 60,
   break: 5 * 60,
@@ -853,14 +964,11 @@ function initTodoApp(options = {}) {
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
+    addTodoFromInput(controller, input, render);
+  });
 
-    const todo = controller.addTodo(input.value);
-
-    if (todo) {
-      input.value = "";
-      input.focus();
-      render();
-    }
+  input.addEventListener("keydown", (event) => {
+    handleTodoInputShortcut(event, { controller, input, render });
   });
 
   list.addEventListener("click", (event) => {
@@ -1039,6 +1147,12 @@ function initPomodoroApp(options = {}) {
     });
   });
 
+  const handleKeydown = (event) => {
+    handlePomodoroShortcut(event, timer, render);
+  };
+
+  rootDocument.addEventListener("keydown", handleKeydown);
+
   if (permissionButton) {
     permissionButton.addEventListener("click", async () => {
       if (permissionStatus) {
@@ -1086,6 +1200,7 @@ function initPomodoroApp(options = {}) {
     timer,
     stop() {
       rootWindow.clearInterval(intervalId);
+      rootDocument.removeEventListener("keydown", handleKeydown);
     },
   };
 }
@@ -1110,7 +1225,10 @@ if (typeof module !== "undefined") {
     filterTodos,
     createPomodoroTimer,
     formatDuration,
+    handlePomodoroShortcut,
+    handleTodoInputShortcut,
     initPomodoroApp,
+    initTodoApp,
     initTimerApp: initPomodoroApp,
     loadTodos,
     playAlarmSound,
