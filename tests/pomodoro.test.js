@@ -25,6 +25,10 @@ test("pomodoro timer starts in a 25 minute focus session", () => {
     remainingSeconds: 25 * 60,
     durationSeconds: 25 * 60,
     completedFocusSessions: 0,
+    dailyFocusSummary: {
+      completedFocusSessions: 0,
+      totalFocusMinutes: 0,
+    },
     statusText: "Ready to focus",
   });
   assert.equal(formatDuration(timer.getState().remainingSeconds), "25:00");
@@ -58,6 +62,10 @@ test("finishing a focus session moves to a stopped break session", () => {
     remainingSeconds: 2,
     durationSeconds: 2,
     completedFocusSessions: 1,
+    dailyFocusSummary: {
+      completedFocusSessions: 1,
+      totalFocusMinutes: 1,
+    },
     statusText: "Focus complete. Start your break.",
   });
 });
@@ -117,4 +125,40 @@ test("pomodoro timer persists edited focus and break durations", () => {
   timer.switchMode("break");
 
   assert.equal(timer.getState().remainingSeconds, 12 * 60);
+});
+
+test("pomodoro timer summarizes completed focus sessions for today", () => {
+  let nextSessionId = 1;
+  const storage = createStorage({
+    pomodoroDailyFocusSessions: JSON.stringify([
+      { id: "session-old", minutes: 25, completedAt: "2026-06-05T10:00:00.000Z" },
+      { id: "session-today", minutes: 30, completedAt: "2026-06-06T09:00:00.000Z" },
+    ]),
+  });
+  const timer = createPomodoroTimer({
+    storage,
+    focusSeconds: 25 * 60,
+    breakSeconds: 5 * 60,
+    sessionIdFactory: () => `session-${nextSessionId++}`,
+    now: () => "2026-06-06T12:00:00.000Z",
+  });
+
+  assert.deepEqual(timer.getState().dailyFocusSummary, {
+    completedFocusSessions: 1,
+    totalFocusMinutes: 30,
+  });
+
+  timer.start();
+  timer.tick(25 * 60);
+
+  assert.equal(timer.getState().mode, "break");
+  assert.deepEqual(timer.getState().dailyFocusSummary, {
+    completedFocusSessions: 2,
+    totalFocusMinutes: 55,
+  });
+  assert.deepEqual(JSON.parse(storage.getItem("pomodoroDailyFocusSessions")), [
+    { id: "session-old", minutes: 25, completedAt: "2026-06-05T10:00:00.000Z" },
+    { id: "session-today", minutes: 30, completedAt: "2026-06-06T09:00:00.000Z" },
+    { id: "session-1", minutes: 25, completedAt: "2026-06-06T12:00:00.000Z" },
+  ]);
 });

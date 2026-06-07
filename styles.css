@@ -41,6 +41,7 @@ textarea {
   display: grid;
   align-content: center;
   gap: 18px;
+  place-items: center;
   padding: 32px 0;
 }
 
@@ -52,6 +53,10 @@ textarea {
   border: 1px solid rgba(219, 225, 232, 0.92);
   border-radius: 8px;
   box-shadow: var(--shadow);
+}
+
+.todo-panel {
+  padding: 24px;
 }
 
 .app-header {
@@ -78,7 +83,18 @@ h2 {
 }
 
 h2 {
-  font-size: 2.1rem;
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.1;
+}
+
+.timer-summary {
+  flex: 0 0 auto;
+  min-width: 170px;
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  padding-top: 6px;
 }
 
 .session-count,
@@ -89,6 +105,26 @@ h2 {
   color: var(--muted);
   font-size: 0.95rem;
   text-align: right;
+}
+
+.timer-summary .session-count {
+  min-width: 0;
+  padding-top: 0;
+}
+
+.daily-focus-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px 10px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.daily-focus-summary strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 
 .session-tabs {
@@ -301,6 +337,14 @@ h2 {
   opacity: 0.52;
 }
 
+.todo-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
 .notification-row {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -399,6 +443,13 @@ h2 {
 .todo-check {
   display: grid;
   place-items: center;
+}
+
+.todo-check input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--focus);
 }
 
 .todo-content {
@@ -527,7 +578,12 @@ h2 {
     padding: 18px;
   }
 
-  .app-header {
+  .todo-panel {
+    padding: 20px;
+  }
+
+  .app-header,
+  .todo-header {
     display: grid;
     gap: 10px;
     margin-bottom: 20px;
@@ -538,14 +594,23 @@ h2 {
   }
 
   h2 {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
   }
 
+  .timer-summary,
   .session-count,
   .todo-count {
     min-width: 0;
     padding-top: 0;
     text-align: left;
+  }
+
+  .timer-summary {
+    justify-items: start;
+  }
+
+  .daily-focus-summary {
+    justify-content: flex-start;
   }
 
   .duration-settings {
@@ -669,5 +734,13 @@ h2 {
   .pomodoro-button,
   .delete-button {
     font-size: 0.92rem;
+  }
+
+  .todo-form {
+    grid-template-columns: 1fr;
+  }
+
+  .todo-form button {
+    width: 100%;
   }
 }

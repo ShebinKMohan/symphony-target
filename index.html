@@ -14,7 +14,14 @@
             <p class="eyebrow">Pomodoro</p>
             <h1 id="app-title">Focus Timer</h1>
           </div>
-          <span class="session-count"><span data-completed-count>0</span> focus sessions</span>
+          <div class="timer-summary">
+            <span class="session-count"><span data-completed-count>0</span> focus sessions</span>
+            <div class="daily-focus-summary" data-daily-focus-summary aria-label="Today's focus summary">
+              <span>Today</span>
+              <span><strong data-daily-focus-sessions>0</strong> <span data-daily-focus-session-label>sessions</span></span>
+              <span><strong data-daily-focus-minutes>0</strong> min</span>
+            </div>
+          </div>
         </header>
 
         <div class="session-tabs" aria-label="Session type">
@@ -83,6 +90,24 @@
         </div>
 
         <ul class="todo-list" data-todo-list aria-live="polite"></ul>
+      </section>
+
+      <section class="todo-panel" aria-labelledby="todo-title">
+        <header class="todo-header">
+          <div>
+            <p class="eyebrow">Todos</p>
+            <h2 id="todo-title">Today</h2>
+          </div>
+          <span class="todo-count" data-todo-count>0 active / 0 complete</span>
+        </header>
+
+        <form class="todo-form" data-todo-form>
+          <label class="sr-only" for="todo-input">Todo</label>
+          <input id="todo-input" type="text" data-todo-input autocomplete="off" placeholder="Add a todo">
+          <button type="submit">Add</button>
+        </form>
+
+        <ul class="todo-list" data-todo-list></ul>
       </section>
     </main>
 
