@@ -32,12 +32,88 @@ test("adding a todo stores it and renders it immediately", () => {
     id: "todo-1",
     text: "Buy milk",
     completed: false,
+    priority: "Medium",
+    dueDate: "",
   });
   assert.equal(app.getTodos().length, 1);
   assert.match(renderTodos(app.getTodos()), /Buy milk/);
   assert.equal(
     storage.getItem("todos"),
-    JSON.stringify([{ id: "todo-1", text: "Buy milk", completed: false }]),
+    JSON.stringify([
+      { id: "todo-1", text: "Buy milk", completed: false, priority: "Medium", dueDate: "" },
+    ]),
+  );
+});
+
+test("priority and due date can be edited and persisted", () => {
+  const storage = createStorage();
+  const app = createTodoController({
+    storage,
+    idFactory: () => "todo-1",
+  });
+
+  app.addTodo("File taxes");
+  app.updateTodoMetadata("todo-1", { priority: "High", dueDate: "2026-06-30" });
+
+  assert.deepEqual(app.getTodos(), [
+    {
+      id: "todo-1",
+      text: "File taxes",
+      completed: false,
+      priority: "High",
+      dueDate: "2026-06-30",
+    },
+  ]);
+  assert.equal(
+    storage.getItem("todos"),
+    JSON.stringify([
+      {
+        id: "todo-1",
+        text: "File taxes",
+        completed: false,
+        priority: "High",
+        dueDate: "2026-06-30",
+      },
+    ]),
+  );
+
+  const html = renderTodos(app.getTodos());
+
+  assert.match(html, /<option value="High" selected>/);
+  assert.match(html, /value="2026-06-30"/);
+});
+
+test("due dates can be cleared without losing priority", () => {
+  const storage = createStorage();
+  const app = createTodoController({
+    storage,
+    idFactory: () => "todo-1",
+  });
+
+  app.addTodo("Renew passport");
+  app.updateTodoMetadata("todo-1", { priority: "Low", dueDate: "2026-07-10" });
+  app.updateTodoMetadata("todo-1", { dueDate: "" });
+
+  assert.deepEqual(app.getTodos(), [
+    {
+      id: "todo-1",
+      text: "Renew passport",
+      completed: false,
+      priority: "Low",
+      dueDate: "",
+    },
+  ]);
+  assert.equal(
+    storage.getItem("todos"),
+    JSON.stringify([
+      {
+        id: "todo-1",
+        text: "Renew passport",
+        completed: false,
+        priority: "Low",
+        dueDate: "",
+      },
+    ]),
   );
 });
 
@@ -82,10 +158,11 @@ test("saved todos are loaded after a refresh", () => {
   const app = createTodoController({ storage });
 
   assert.deepEqual(app.getTodos(), [
-    { id: "todo-1", text: "Persist me", completed: true },
+    { id: "todo-1", text: "Persist me", completed: true, priority: "Medium", dueDate: "" },
   ]);
   assert.match(renderTodos(app.getTodos()), /Persist me/);
   assert.match(renderTodos(app.getTodos()), /is-completed/);
+  assert.match(renderTodos(app.getTodos()), /<option value="Medium" selected>/);
 });
 
 test("todo filters return all, active, and completed without changing storage", () => {
@@ -115,8 +192,8 @@ test("todo filters return all, active, and completed without changing storage", 
   assert.equal(
     storage.getItem("todos"),
     JSON.stringify([
-      { id: "todo-2", text: "Send update", completed: false },
-      { id: "todo-1", text: "Read notes", completed: true },
+      { id: "todo-2", text: "Send update", completed: false, priority: "Medium", dueDate: "" },
+      { id: "todo-1", text: "Read notes", completed: true, priority: "Medium", dueDate: "" },
     ]),
   );
 });
@@ -136,6 +213,8 @@ test("todo notes can be added, edited, cleared, and persisted", () => {
     id: "todo-1",
     text: "Draft launch note",
     completed: false,
+    priority: "Medium",
+    dueDate: "",
     note: "Discuss launch blockers",
   });
   assert.equal(
@@ -145,6 +224,8 @@ test("todo notes can be added, edited, cleared, and persisted", () => {
         id: "todo-1",
         text: "Draft launch note",
         completed: false,
+        priority: "Medium",
+        dueDate: "",
         note: "Discuss launch blockers",
       },
     ]),
@@ -160,10 +241,20 @@ test("todo notes can be added, edited, cleared, and persisted", () => {
     id: "todo-1",
     text: "Draft launch note",
     completed: false,
+    priority: "Medium",
+    dueDate: "",
   });
   assert.equal(
     storage.getItem("todos"),
-    JSON.stringify([{ id: "todo-1", text: "Draft launch note", completed: false }]),
+    JSON.stringify([
+      {
+        id: "todo-1",
+        text: "Draft launch note",
+        completed: false,
+        priority: "Medium",
+        dueDate: "",
+      },
+    ]),
   );
 });
 
@@ -188,9 +279,11 @@ test("saved notes render with editable controls and old todos still render", () 
       id: "todo-1",
       text: "Review order",
       completed: false,
+      priority: "Medium",
+      dueDate: "",
       note: "Bring receipts & SKU list",
     },
-    { id: "todo-2", text: "Legacy todo", completed: true },
+    { id: "todo-2", text: "Legacy todo", completed: true, priority: "Medium", dueDate: "" },
   ]);
   assert.match(html, /class="todo-note-input"/);
   assert.match(html, /data-action="save-note"/);
@@ -246,7 +339,14 @@ test("saved todos with title fields remain searchable", () => {
   });
 
   assert.deepEqual(app.getTodos({ search: "milk" }), [
-    { id: "todo-1", text: "Buy Milk", completed: false, notes: "oat carton" },
+    {
+      id: "todo-1",
+      text: "Buy Milk",
+      completed: false,
+      priority: "Medium",
+      dueDate: "",
+      notes: "oat carton",
+    },
   ]);
 });
 
@@ -295,6 +395,8 @@ test("pomodoro sessions are associated with todos and persisted", () => {
         id: "todo-1",
         text: "Draft proposal",
         completed: false,
+        priority: "Medium",
+        dueDate: "",
         pomodoroSessions: [session],
       },
     ]),

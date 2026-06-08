@@ -1,7 +1,11 @@
 const assert = require("node:assert/strict");
+const { readFileSync } = require("node:fs");
+const { join } = require("node:path");
 const test = require("node:test");
 
 const { initTodoApp } = require("../app");
+
+const html = readFileSync(join(__dirname, "..", "index.html"), "utf8");
 
 function createStorage(initial = {}) {
   const store = new Map(Object.entries(initial));
@@ -91,6 +95,18 @@ class FakeElement {
       return this;
     }
 
+    if (selector === ".todo-item" && this.todoItem) {
+      return this.todoItem;
+    }
+
+    return null;
+  }
+
+  querySelector(selector) {
+    if (selector === "[data-note-input]") {
+      return this.noteInput || null;
+    }
+
     return null;
   }
 }
@@ -98,6 +114,7 @@ class FakeElement {
 function createTodoDom() {
   const form = new FakeElement();
   const input = new FakeElement();
+  const search = new FakeElement();
   const list = new FakeElement();
   const count = new FakeElement();
   const filterButtons = {
@@ -118,6 +135,7 @@ function createTodoDom() {
   const elements = new Map([
     ["[data-todo-form]", form],
     ["[data-todo-input]", input],
+    ["[data-todo-search]", search],
     ["[data-todo-list]", list],
     ["[data-todo-count]", count],
   ]);
@@ -128,6 +146,7 @@ function createTodoDom() {
     form,
     input,
     list,
+    search,
     document: {
       querySelector(selector) {
         return elements.get(selector) || null;
@@ -135,18 +154,71 @@ function createTodoDom() {
       querySelectorAll(selector) {
         return selector === "[data-todo-filter]" ? filters : [];
       },
+      dispatchEvent() {},
     },
   };
 }
 
-function createActionTarget(action, id) {
+function createActionTarget(action, id, options = {}) {
   return new FakeElement({
     dataset: {
       action,
       id,
     },
+    value: options.value || "",
   });
 }
+
+test("index page exposes the todo UI hooks", () => {
+  assert.match(html, /data-todo-form/);
+  assert.match(html, /data-todo-input/);
+  assert.match(html, /data-todo-search/);
+  assert.match(html, /data-todo-filter="active"/);
+  assert.match(html, /data-todo-list/);
+  assert.match(html, /data-todo-count/);
+});
+
+test("todo UI metadata controls persist priority, due date, and clear date changes", () => {
+  const storage = createStorage({
+    todos: JSON.stringify([{ id: "todo-1", text: "Plan launch", completed: false }]),
+  });
+  const { document, list } = createTodoDom();
+
+  initTodoApp({ document, storage });
+
+  list.dispatchEvent("change", {
+    target: createActionTarget("priority", "todo-1", { value: "High" }),
+  });
+  list.dispatchEvent("change", {
+    target: createActionTarget("due-date", "todo-1", { value: "2026-06-30" }),
+  });
+
+  assert.deepEqual(JSON.parse(storage.getItem("todos")), [
+    {
+      id: "todo-1",
+      text: "Plan launch",
+      completed: false,
+      priority: "High",
+      dueDate: "2026-06-30",
+    },
+  ]);
+  assert.match(list.innerHTML, /<option value="High" selected>/);
+  assert.match(list.innerHTML, /value="2026-06-30"/);
+
+  list.dispatchEvent("click", {
+    target: createActionTarget("clear-due-date", "todo-1"),
+  });
+
+  assert.deepEqual(JSON.parse(storage.getItem("todos")), [
+    {
+      id: "todo-1",
+      text: "Plan launch",
+      completed: false,
+      priority: "High",
+      dueDate: "",
+    },
+  ]);
+});
 
 test("todo app switches filters with clear active state and persisted reload data", () => {
   const storage = createStorage({
@@ -182,8 +254,20 @@ test("todo app switches filters with clear active state and persisted reload dat
   assert.equal(
     storage.getItem("todos"),
     JSON.stringify([
-      { id: "todo-active", text: "Plan sprint", completed: true },
-      { id: "todo-completed", text: "Close invoice", completed: true },
+      {
+        id: "todo-active",
+        text: "Plan sprint",
+        completed: true,
+        priority: "Medium",
+        dueDate: "",
+      },
+      {
+        id: "todo-completed",
+        text: "Close invoice",
+        completed: true,
+        priority: "Medium",
+        dueDate: "",
+      },
     ]),
   );
 

@@ -1,4 +1,7 @@
 const STORAGE_KEY = "todos";
+const PRIORITIES = ["Low", "Medium", "High"];
+const DEFAULT_PRIORITY = "Medium";
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const POMODORO_HISTORY_STORAGE_KEY = "pomodoroSessions";
 const POMODORO_HISTORY_LIMIT = 5;
 const TODO_CHANGE_EVENT = "todos:changed";
@@ -29,6 +32,8 @@ function cloneTodo(todo) {
     id: todo.id,
     text: getTodoTitle(todo),
     completed: Boolean(todo.completed),
+    priority: normalizePriority(todo.priority),
+    dueDate: normalizeDueDate(todo.dueDate),
   };
   const note = getTodoNote(todo);
 
@@ -92,6 +97,18 @@ function getFocusMinutes(todo) {
 
 function formatPomodoroCount(count) {
   return `${count} ${count === 1 ? "pomodoro" : "pomodoros"}`;
+}
+
+function normalizePriority(priority) {
+  return PRIORITIES.includes(priority) ? priority : DEFAULT_PRIORITY;
+}
+
+function normalizeDueDate(dueDate) {
+  if (typeof dueDate !== "string") {
+    return "";
+  }
+
+  return DATE_PATTERN.test(dueDate) ? dueDate : "";
 }
 
 function loadTodos(storage = getDefaultStorage()) {
@@ -490,6 +507,8 @@ function createTodoController(options = {}) {
         id: idFactory(),
         text: cleanText,
         completed: false,
+        priority: DEFAULT_PRIORITY,
+        dueDate: "",
       };
 
       todos = [todo, ...todos];
@@ -508,6 +527,32 @@ function createTodoController(options = {}) {
     deleteTodo(id) {
       todos = todos.filter((todo) => todo.id !== id);
       persist();
+    },
+
+    updateTodoMetadata(id, metadata = {}) {
+      let updatedTodo = null;
+
+      todos = todos.map((todo) => {
+        if (todo.id !== id) {
+          return todo;
+        }
+
+        updatedTodo = {
+          ...todo,
+          priority: Object.prototype.hasOwnProperty.call(metadata, "priority")
+            ? normalizePriority(metadata.priority)
+            : todo.priority,
+          dueDate: Object.prototype.hasOwnProperty.call(metadata, "dueDate")
+            ? normalizeDueDate(metadata.dueDate)
+            : todo.dueDate,
+        };
+
+        return updatedTodo;
+      });
+
+      persist();
+
+      return updatedTodo ? cloneTodo(updatedTodo) : null;
     },
 
     updateTodoNote(id, note) {
@@ -626,6 +671,14 @@ function renderTodos(todos, options = {}) {
     .map((todo) => {
       const id = escapeHtml(todo.id);
       const text = escapeHtml(todo.text);
+      const priority = normalizePriority(todo.priority);
+      const dueDate = escapeHtml(normalizeDueDate(todo.dueDate));
+      const priorityOptions = PRIORITIES.map((priorityOption) => {
+        const selected = priorityOption === priority ? " selected" : "";
+
+        return `<option value="${priorityOption}"${selected}>${priorityOption}</option>`;
+      }).join("");
+      const clearDisabled = dueDate ? "" : " disabled";
       const pomodoroSessions = getPomodoroSessions(todo);
       const pomodoroCount = pomodoroSessions.length;
       const focusMinutes = getFocusMinutes(todo);
@@ -634,7 +687,7 @@ function renderTodos(todos, options = {}) {
       const note = escapeHtml(getTodoNote(todo));
 
       return `
-        <li class="todo-item${completedClass}" data-id="${id}">
+        <li class="todo-item${completedClass}" data-id="${id}" data-priority="${escapeHtml(priority.toLowerCase())}">
           <label class="todo-check">
             <input type="checkbox" data-action="toggle" data-id="${id}"${checked} aria-label="Toggle ${text}">
             <span class="checkmark" aria-hidden="true"></span>
@@ -642,6 +695,19 @@ function renderTodos(todos, options = {}) {
           <div class="todo-content">
             <span class="todo-text">${text}</span>
             <span class="todo-focus">${formatPomodoroCount(pomodoroCount)} / ${focusMinutes} min focus</span>
+            <div class="todo-meta">
+              <label class="todo-field">
+                <span>Priority</span>
+                <select data-action="priority" data-id="${id}" aria-label="Priority for ${text}">
+                  ${priorityOptions}
+                </select>
+              </label>
+              <label class="todo-field">
+                <span>Due</span>
+                <input type="date" data-action="due-date" data-id="${id}" value="${dueDate}" aria-label="Due date for ${text}">
+              </label>
+              <button class="clear-due-button" type="button" data-action="clear-due-date" data-id="${id}"${clearDisabled}>Clear</button>
+            </div>
             <div class="todo-note">
               <label class="sr-only" for="todo-note-${id}">Note for ${text}</label>
               <textarea class="todo-note-input" id="todo-note-${id}" data-note-input data-id="${id}" rows="2" maxlength="500" placeholder="Add a note">${note}</textarea>
@@ -1219,25 +1285,40 @@ function initTodoApp(options = {}) {
 
     if (actionTarget.dataset.action === "toggle") {
       controller.toggleTodo(actionTarget.dataset.id);
-    }
-
-    if (actionTarget.dataset.action === "delete") {
+    } else if (actionTarget.dataset.action === "delete") {
       controller.deleteTodo(actionTarget.dataset.id);
-    }
-
-    if (actionTarget.dataset.action === "pomodoro") {
+    } else if (actionTarget.dataset.action === "clear-due-date") {
+      controller.updateTodoMetadata(actionTarget.dataset.id, { dueDate: "" });
+    } else if (actionTarget.dataset.action === "pomodoro") {
       controller.logPomodoroSession(actionTarget.dataset.id);
-    }
-
-    if (actionTarget.dataset.action === "save-note") {
+    } else if (actionTarget.dataset.action === "save-note") {
       const todoItem = actionTarget.closest(".todo-item");
       const noteInput = todoItem && todoItem.querySelector("[data-note-input]");
 
       controller.updateTodoNote(actionTarget.dataset.id, noteInput ? noteInput.value : "");
+    } else if (actionTarget.dataset.action === "clear-note") {
+      controller.updateTodoNote(actionTarget.dataset.id, "");
+    } else {
+      return;
     }
 
-    if (actionTarget.dataset.action === "clear-note") {
-      controller.updateTodoNote(actionTarget.dataset.id, "");
+    render();
+    dispatchTodoChange(rootDocument);
+  });
+
+  list.addEventListener("change", (event) => {
+    const actionTarget = event.target.closest("[data-action]");
+
+    if (!actionTarget) {
+      return;
+    }
+
+    if (actionTarget.dataset.action === "priority") {
+      controller.updateTodoMetadata(actionTarget.dataset.id, { priority: actionTarget.value });
+    } else if (actionTarget.dataset.action === "due-date") {
+      controller.updateTodoMetadata(actionTarget.dataset.id, { dueDate: actionTarget.value });
+    } else {
+      return;
     }
 
     render();
